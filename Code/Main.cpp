@@ -6,7 +6,6 @@
 #include "Graphics/Shader.h"
 #include "Graphics/Window.h"
 #include "Logger.h"
-#include "Math/Vector.h"
 #include "Time.h"
 #include "World/ChunkManager.h"
 
@@ -57,6 +56,8 @@ int main()
     {
         Time::Update();
 
+        float fps = (Time::GetDelta() > 0.0f) ? (1.0f / static_cast<float>(Time::GetDelta())) : 0.0f;
+
         window.PollEvents();
 
         camera.Update();
@@ -75,6 +76,8 @@ int main()
         chunkManager.Update(shader);
 
         window.SwapBuffers();
+
+        // LOG_INFO("FPS: {}", fps);
     }
 
     // glfwTerminate();

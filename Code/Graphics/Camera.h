@@ -38,8 +38,8 @@ private:
     float m_Sensitivity = 0.2f;
 
     float m_Fov = 70.0f;
-    float m_Near = 0.01f;
-    float m_Far = 1000.0f;
+    float m_Near = 0.05f;
+    float m_Far = 500.0f;
 
     Matrices m_Matrices;
 };
