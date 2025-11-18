@@ -18,7 +18,7 @@ public:
 
     ThreadPool m_ThreadPool;
 
-    int viewDistance = 2;
+    int viewDistance = 16;
 
     void RequestChunk(int cx, int cz);
     std::shared_ptr<Chunk> GetChunk(int cx, int cz);
@@ -46,6 +46,8 @@ private:
     int getBlockIndex(int x, int y, int z) const;
 
 private:
+    Vector3f m_PlayerPosition;
+
     ThreadSafeQueue<ThreadTask<BlockData>> blockQueue;
     ThreadSafeQueue<ThreadTask<MeshData>> meshQueue;
 };

@@ -8,6 +8,7 @@
 #include "Math/Vector.h"
 #include "Queue.h"
 #include "World/Chunk.h"
+#include <algorithm>
 #include <memory>
 #include <stdexcept>
 
@@ -50,47 +51,38 @@ void ChunkManager::RequestChunk(int cx, int cz)
         m_Chunks[key] = chunk;
     }
 
-    // Phase 1 + Phase 2 go inside this worker
+    // Post worker to thread pool
     m_ThreadPool.post([this, chunk]()
                       {
-                           // --------------------------
-                           // PHASE 1: Generate blocks
-                           // --------------------------
-                           BlockData blockData = generateBlocks(chunk->chunkX, chunk->chunkZ);
+        // --------------------------
+        // PHASE 1: Generate blocks
+        // --------------------------
+        BlockData blockData = generateBlocks(chunk->chunkX, chunk->chunkZ);
 
-                         MeshData meshData = generateMesh(blockData, chunk->chunkX, chunk->chunkZ);
+        // Push block data to main thread
+        blockQueue.push({.callback = [this, chunk](BlockData &data) {
+            chunk->applyBlockData(data);
+        }, .result = std::move(blockData)});
 
-                           blockQueue.push({.callback = [this, chunk](BlockData &data)
-                                            {
-                                                chunk->applyBlockData(data);
-                                            },
-                                            .result = std::move(blockData)});
+        // --------------------------
+        // PHASE 2: Generate mesh
+        // --------------------------
+        // Note: we include neighbors for AO, but don't rebuild neighbors here
+        MeshData meshData = generateMesh(BlockData{chunk->blocks}, chunk->chunkX, chunk->chunkZ);
 
-                           /*
-                           // WAIT UNTIL ALL NEIGHBORS HAVE blockData
-                           while (!chunk->neighborsBlocksReady())
-                           {
-                               std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                           }
-                           */
+        meshQueue.push({.callback = [this, chunk](MeshData &mesh)
+        {
+            chunk->applyMeshData(mesh);
 
-                           // --------------------------
-                           // PHASE 2: Generate mesh
-                           // --------------------------
-
-                           meshQueue.push({.callback = [this, chunk](MeshData &mesh)
-                                           {
-                                               chunk->applyMeshData(mesh);
-                                               // mark neighbors for rebuild
-    static const Vector2i offsets[] = {{1,0},{-1,0},{0,1},{0,-1}};
-    for (auto &off : offsets)
-    {
-        auto neighbor = GetChunk(chunk->chunkX + off.x, chunk->chunkZ + off.y);
-        if (neighbor && neighbor->meshReady)
-            neighbor->needsRebuild = true;
-    }
-                                           },
-                                           .result = std::move(meshData)}); });
+            // Mark neighbors as dirty for next frame (deferred)
+            static const Vector2i offsets[] = {{1,0},{-1,0},{0,1},{0,-1}};
+            for (auto &off : offsets)
+            {
+                auto neighbor = getChunk(chunk->chunkX + off.x, chunk->chunkZ + off.y);
+                if (neighbor)
+                    neighbor->needsRebuild = true; // just mark, don't rebuild now
+            }
+        }, .result = std::move(meshData)}); });
 }
 
 // =====================================================================
@@ -98,6 +90,8 @@ void ChunkManager::RequestChunk(int cx, int cz)
 // =====================================================================
 void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
 {
+    m_PlayerPosition = pos;
+
     Vector2i center{pos.x / CHUNK_WIDTH, pos.z / CHUNK_WIDTH};
     for (int dz = -viewDistance; dz <= viewDistance; dz++)
         for (int dx = -viewDistance; dx <= viewDistance; dx++)
@@ -110,29 +104,65 @@ void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
 // =====================================================================
 void ChunkManager::Update(const Shader &shader)
 {
-    // PHASE 1: apply block results
+    // Apply block results
     ThreadTask<BlockData> blockTask;
     while (blockQueue.pop(blockTask))
         blockTask.callback(blockTask.result);
 
-    // PHASE 2: apply mesh results
+    // Apply mesh results
     ThreadTask<MeshData> meshTask;
     while (meshQueue.pop(meshTask))
         meshTask.callback(meshTask.result);
+
+    // Rebuild dirty chunks
+    std::vector<std::shared_ptr<Chunk>> dirtyChunks;
+    dirtyChunks.reserve(m_Chunks.size());
 
     for (auto &[pos, chunk] : m_Chunks)
     {
         if (chunk->needsRebuild && chunk->blocksReady)
         {
-            BlockData blockData;
-            blockData.blocks = chunk->blocks;
-            MeshData newMesh = generateMesh(blockData, chunk->chunkX, chunk->chunkZ);
-            chunk->applyMeshData(newMesh);
-            chunk->needsRebuild = false;
+            dirtyChunks.push_back(chunk);
         }
     }
 
-    // PHASE 3: upload and render
+    int px = static_cast<int>(std::floor(m_PlayerPosition.x / CHUNK_WIDTH));
+    int pz = static_cast<int>(std::floor(m_PlayerPosition.z / CHUNK_WIDTH));
+    Vector2i playerChunk{px, pz};
+
+    std::sort(dirtyChunks.begin(), dirtyChunks.end(),
+              [&](const std::shared_ptr<Chunk> &a, const std::shared_ptr<Chunk> &b)
+              {
+                  int dxA = a->chunkX - playerChunk.x;
+                  int dzA = a->chunkZ - playerChunk.y;
+                  int dxB = b->chunkX - playerChunk.x;
+                  int dzB = b->chunkZ - playerChunk.y;
+
+                  return (dxA * dxA + dzA * dzA) < (dxB * dxB + dzB * dzB); // closer first
+              });
+
+    const int maxRebuildsPerFrame = 2;
+
+    int rebuildCount = 0;
+    for (auto &chunk : dirtyChunks)
+    {
+        if (rebuildCount >= maxRebuildsPerFrame)
+            break;
+
+        chunk->needsRebuild = false;
+
+        m_ThreadPool.post([this, chunk]()
+                          {
+        MeshData newMesh = generateMesh(BlockData{chunk->blocks}, chunk->chunkX, chunk->chunkZ);
+        meshQueue.push({.callback = [chunk](MeshData &mesh)
+        {
+            chunk->applyMeshData(mesh);
+        }, .result = std::move(newMesh)}); });
+
+        rebuildCount++;
+    }
+
+    // Upload meshes to GPU and render
     for (auto &[pos, chunk] : m_Chunks)
     {
         if (chunk->meshReady && !chunk->gpuReady)
@@ -146,27 +176,6 @@ void ChunkManager::Update(const Shader &shader)
             chunk->draw(shader);
         }
     }
-
-    /*
-    std::scoped_lock lock(m_ChunkMutex);
-
-    for (auto &[pos, chunk] : m_Chunks)
-    {
-        if (!chunk || !chunk->meshReady)
-            continue;
-
-        if (!chunk->gpuReady)
-            chunk->uploadMeshToGPU();
-
-        if (chunk->gpuReady)
-        {
-            glm::vec3 chunkWorldPos{pos.x * CHUNK_WIDTH, 0.0f, pos.y * CHUNK_WIDTH};
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), chunkWorldPos);
-            shader.SetUniform("u_Model", model);
-            chunk->draw(shader);
-        }
-    }
-    */
 }
 
 std::shared_ptr<Chunk> ChunkManager::getChunk(int x, int z)
@@ -178,7 +187,7 @@ std::shared_ptr<Chunk> ChunkManager::getChunk(int x, int z)
 bool ChunkManager::blockAtSafe(const BlockData &data, int x, int y, int z) const
 {
     if (x < 0 || x >= CHUNK_WIDTH || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_WIDTH)
-        return false; // treat missing neighbors as air
+        return false;
     return data.blocks[getBlockIndex(x, y, z)];
 }
 
@@ -244,9 +253,9 @@ BlockData ChunkManager::generateBlocks(int chunkX, int chunkZ)
             float worldZ = static_cast<float>(chunkZ * CHUNK_WIDTH + z);
 
             float height = noise.GetNoise(worldX, worldZ); // continuous noise
-            int terrainHeight = static_cast<int>(CHUNK_BASE_HEIGHT + height * amplitude);
+            int terrainHeight = static_cast<int>(CHUNK_BASE_HEIGHT + (height * amplitude));
 
-            for (int y = 0; y < CHUNK_BASE_HEIGHT; ++y)
+            for (int y = 0; y < CHUNK_HEIGHT; ++y)
             {
                 // setBlock(x, y, z, true);
                 if (y < terrainHeight)
