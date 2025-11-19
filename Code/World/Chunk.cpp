@@ -51,6 +51,30 @@ void Chunk::UploadMeshToGPU()
     m_GpuReady = true;
 }
 
+void Chunk::DeleteGPUData()
+{
+    if (!m_GpuReady)
+        return;
+
+    if (m_VAO)
+    {
+        glDeleteVertexArrays(1, &m_VAO);
+        m_VAO = 0;
+    }
+    if (m_VBO)
+    {
+        glDeleteBuffers(1, &m_VBO);
+        m_VBO = 0;
+    }
+    if (m_EBO)
+    {
+        glDeleteBuffers(1, &m_EBO);
+        m_EBO = 0;
+    }
+
+    m_GpuReady = false;
+}
+
 void Chunk::Draw(const Shader &shader)
 {
     if (!m_GpuReady)
@@ -65,10 +89,10 @@ void Chunk::Draw(const Shader &shader)
     glBindVertexArray(0);
 }
 
-void Chunk::SetBlockData(BlockData &data)
+void Chunk::SetBlockData(const BlockData &data)
 {
-    m_Blocks = data.Blocks;
-
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    m_Blocks = data; // Copy entire data safely
     m_BlocksReady = true;
 }
 

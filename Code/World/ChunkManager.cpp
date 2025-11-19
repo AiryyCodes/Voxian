@@ -2,6 +2,7 @@
 #include "World/ChunkManager.h"
 #include "FastNoiseLite.h"
 #include "Graphics/Shader.h"
+#include "Logger.h"
 #include "Math/Vector.h"
 #include "Queue.h"
 #include "World/Chunk.h"
@@ -12,62 +13,98 @@
 
 void ChunkManager::RequestChunk(int x, int z)
 {
-    std::shared_ptr<Chunk> chunk;
+    Vector2i key{x, z};
+    {
+        std::scoped_lock lock(m_ChunkMutex);
+        if (m_Chunks.find(key) != m_Chunks.end() || m_RequestedChunks.count(key))
+            return; // already loaded or requested
+        m_RequestedChunks.insert(key);
+    }
+
+    auto chunk = std::make_shared<Chunk>(this, x, z);
 
     {
         std::scoped_lock lock(m_ChunkMutex);
-        Vector2i key{x, z};
-        if (m_Chunks.find(key) != m_Chunks.end())
-            return;
-
-        chunk = std::make_shared<Chunk>(this, x, z);
         m_Chunks[key] = chunk;
     }
 
-    // Post worker to thread pool
-    m_ThreadPool.post([this, chunk]()
+    // Use weak_ptr to avoid use-after-free
+    std::weak_ptr<Chunk> weakChunk = chunk;
+
+    // Generate blocks and mesh asynchronously
+    m_ThreadPool.post([this, weakChunk, key]()
                       {
-        // Generate block data
-        BlockData blockData = GenerateBlocks(chunk->m_Position.x, chunk->m_Position.y);
+        if (auto chunk = weakChunk.lock())  // Only proceed if chunk still exists
+        {
+            BlockData blockData = GenerateBlocks(chunk->m_Position.x, chunk->m_Position.y);
 
-        // Push block data to main thread
-        m_BlockQueue.push({
-            .callback = [this, chunk](BlockData &data)
-            {
-                chunk->SetBlockData(data);
-            },
-            .result = std::move(blockData)
-        });
+            m_BlockQueue.push({
+                .callback = [weakChunk](BlockData &data) {
+                    if (auto chunk = weakChunk.lock())
+                        chunk->SetBlockData(data);
+                },
+                .result = std::move(blockData)
+            });
 
-        // Generate mesh
-        MeshData meshData = GenerateMesh(BlockData{chunk->m_Blocks}, chunk->m_Position.x, chunk->m_Position.y);
+            MeshData meshData = GenerateMesh(BlockData{chunk->m_Blocks}, chunk->m_Position.x, chunk->m_Position.y);
 
-        m_MeshQueue.push({
-            .callback = [this, chunk](MeshData &mesh)
-            {
-                chunk->SetMeshData(mesh);
+            m_MeshQueue.push({
+                .callback = [this, weakChunk](MeshData &mesh) {
+                    if (auto chunk = weakChunk.lock())
+                    {
+                        chunk->SetMeshData(mesh);
 
-                // Mark neighbors as dirty for next frame
-                static const Vector2i offsets[] = {{1,0},{-1,0},{0,1},{0,-1}};
-                for (auto &off : offsets)
-                {
-                    auto neighbor = GetChunk(chunk->m_Position.x + off.x, chunk->m_Position.y + off.y);
-                    if (neighbor)
-                        neighbor->m_NeedsRebuild = true;
-                }
-            },
-            .result = std::move(meshData)});
-        });
+                        // Mark neighbors as dirty
+                        static const Vector2i offsets[] = {{1,0},{-1,0},{0,1},{0,-1}};
+                        for (auto &off : offsets)
+                        {
+                            auto neighbor = GetChunk(chunk->m_Position.x + off.x, chunk->m_Position.y + off.y);
+                            if (neighbor)
+                                neighbor->m_NeedsRebuild = true;
+                        }
+                    }
+                },
+                .result = std::move(meshData)
+            });
+        } });
 }
 
 void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
 {
     m_PlayerPosition = pos;
+    Vector2i playerChunk{
+        static_cast<int>(std::floor(pos.x / CHUNK_WIDTH)),
+        static_cast<int>(std::floor(pos.z / CHUNK_WIDTH))};
 
-    Vector2i center{pos.x / CHUNK_WIDTH, pos.z / CHUNK_WIDTH};
+    // Compute desired chunks with distance
+    std::vector<std::pair<int, Vector2i>> desiredChunks; // distance, coords
     for (int dz = -m_ViewDistance; dz <= m_ViewDistance; dz++)
+    {
         for (int dx = -m_ViewDistance; dx <= m_ViewDistance; dx++)
-            RequestChunk(center.x + dx, center.y + dz);
+        {
+            Vector2i c{playerChunk.x + dx, playerChunk.y + dz};
+            int dist2 = dx * dx + dz * dz;
+            desiredChunks.emplace_back(dist2, c);
+        }
+    }
+
+    // Sort by distance so closest chunks are requested first
+    std::sort(desiredChunks.begin(), desiredChunks.end(),
+              [](const auto &a, const auto &b)
+              { return a.first < b.first; });
+
+    // Request new chunks in order
+    for (const auto &[_, key] : desiredChunks)
+        RequestChunk(key.x, key.y);
+
+    // Mark far-away chunks for unloading
+    std::scoped_lock lock(m_ChunkMutex);
+    for (auto &[pos, chunk] : m_Chunks)
+    {
+        chunk->m_ShouldUnload = !std::any_of(desiredChunks.begin(), desiredChunks.end(),
+                                             [&](const auto &p)
+                                             { return p.second == pos; });
+    }
 }
 
 void ChunkManager::Update(const Shader &shader)
@@ -82,21 +119,20 @@ void ChunkManager::Update(const Shader &shader)
     while (m_MeshQueue.pop(meshTask))
         meshTask.callback(meshTask.result);
 
-    // Rebuild dirty chunks
-    std::vector<std::shared_ptr<Chunk>> dirtyChunks;
-    dirtyChunks.reserve(m_Chunks.size());
-
-    for (auto &[pos, chunk] : m_Chunks)
-    {
-        if (chunk->m_NeedsRebuild && chunk->m_BlocksReady)
-        {
-            dirtyChunks.push_back(chunk);
-        }
-    }
-
     int px = static_cast<int>(std::floor(m_PlayerPosition.x / CHUNK_WIDTH));
     int pz = static_cast<int>(std::floor(m_PlayerPosition.z / CHUNK_WIDTH));
     Vector2i playerChunk{px, pz};
+
+    // Rebuild dirty chunks
+    std::vector<std::shared_ptr<Chunk>> dirtyChunks;
+    {
+        std::scoped_lock lock(m_ChunkMutex);
+        for (auto &[pos, chunk] : m_Chunks)
+        {
+            if (chunk->m_NeedsRebuild && chunk->m_BlocksReady)
+                dirtyChunks.push_back(chunk);
+        }
+    }
 
     std::sort(dirtyChunks.begin(), dirtyChunks.end(),
               [&](const std::shared_ptr<Chunk> &a, const std::shared_ptr<Chunk> &b)
@@ -105,8 +141,7 @@ void ChunkManager::Update(const Shader &shader)
                   int dzA = a->m_Position.y - playerChunk.y;
                   int dxB = b->m_Position.x - playerChunk.x;
                   int dzB = b->m_Position.y - playerChunk.y;
-
-                  return (dxA * dxA + dzA * dzA) < (dxB * dxB + dzB * dzB); // closer first
+                  return (dxA * dxA + dzA * dzA) < (dxB * dxB + dzB * dzB);
               });
 
     int rebuildCount = 0;
@@ -117,77 +152,78 @@ void ChunkManager::Update(const Shader &shader)
 
         chunk->m_NeedsRebuild = false;
 
-        m_ThreadPool.post([this, chunk]() {
-        MeshData newMesh = GenerateMesh(BlockData{chunk->m_Blocks}, chunk->m_Position.x, chunk->m_Position.y);
-        m_MeshQueue.push({.callback = [chunk](MeshData &mesh)
-        {
-            chunk->SetMeshData(mesh);
-        }, .result = std::move(newMesh)}); });
+        m_ThreadPool.post([this, chunk]()
+                          {
+            MeshData newMesh = GenerateMesh(BlockData{chunk->m_Blocks}, chunk->m_Position.x, chunk->m_Position.y);
+            m_MeshQueue.push({.callback = [chunk](MeshData &mesh) { chunk->SetMeshData(mesh); },
+                              .result = std::move(newMesh)}); });
 
         rebuildCount++;
     }
 
-    // Upload meshes to GPU and render
-    for (auto &[pos, chunk] : m_Chunks)
+    // Upload meshes, render, unload
+    const int renderDistance = m_ViewDistance;
+
+    std::scoped_lock lock(m_ChunkMutex);
+    for (auto it = m_Chunks.begin(); it != m_Chunks.end();)
     {
+        auto &chunk = it->second;
+        int dx = chunk->m_Position.x - playerChunk.x;
+        int dz = chunk->m_Position.y - playerChunk.y;
+        int dist2 = dx * dx + dz * dz;
+
         if (chunk->m_MeshReady && !chunk->m_GpuReady)
             chunk->UploadMeshToGPU();
 
-        if (chunk->m_GpuReady)
-        {
+        if (chunk->m_GpuReady && dist2 <= renderDistance * renderDistance)
             chunk->Draw(shader);
+
+        if (chunk->m_ShouldUnload && !chunk->m_NeedsRebuild && chunk->m_GpuReady)
+        {
+            chunk->DeleteGPUData();
+            m_RequestedChunks.erase(it->first);
+            it = m_Chunks.erase(it);
+        }
+        else
+        {
+            ++it;
         }
     }
+
+    // LOG_INFO("Chunks: {}", m_Chunks.size());
 }
 
 std::shared_ptr<Chunk> ChunkManager::GetChunk(int x, int z)
 {
+    std::scoped_lock lock(m_ChunkMutex);
     auto it = m_Chunks.find(Vector2i(x, z));
     return it != m_Chunks.end() ? it->second : nullptr;
 }
 
 bool ChunkManager::GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData)
 {
-    // Local coordinates inside this chunk
+    // First, check if it's inside the local chunk
     if (x >= 0 && x < CHUNK_WIDTH &&
         y >= 0 && y < CHUNK_HEIGHT &&
         z >= 0 && z < CHUNK_WIDTH)
     {
-        return localData.Blocks[GetBlockIndex(x, y, z)];
+        return localData.Get(x, y, z);
     }
 
-    // Check neighbor chunk
-    int nx = x, nz = z;
-    int neighborChunkX = chunkX;
-    int neighborChunkZ = chunkZ;
+    // Determine neighbor chunk coordinates
+    int neighborChunkX = chunkX + (x < 0 ? -1 : (x >= CHUNK_WIDTH ? 1 : 0));
+    int neighborChunkZ = chunkZ + (z < 0 ? -1 : (z >= CHUNK_WIDTH ? 1 : 0));
 
-    if (x < 0)
-    {
-        neighborChunkX -= 1;
-        nx = x + CHUNK_WIDTH;
-    }
-    else if (x >= CHUNK_WIDTH)
-    {
-        neighborChunkX += 1;
-        nx = x - CHUNK_WIDTH;
-    }
-
-    if (z < 0)
-    {
-        neighborChunkZ -= 1;
-        nz = z + CHUNK_WIDTH;
-    }
-    else if (z >= CHUNK_WIDTH)
-    {
-        neighborChunkZ += 1;
-        nz = z - CHUNK_WIDTH;
-    }
+    // Wrap local coordinates into neighbor chunk
+    int nx = (x + CHUNK_WIDTH) % CHUNK_WIDTH;
+    int nz = (z + CHUNK_WIDTH) % CHUNK_WIDTH;
 
     auto neighbor = GetChunk(neighborChunkX, neighborChunkZ);
     if (!neighbor || !neighbor->m_BlocksReady)
         return false;
 
-    return neighbor->m_Blocks[GetBlockIndex(nx, y, nz)];
+    std::lock_guard<std::mutex> lock(neighbor->m_Mutex);
+    return neighbor->GetBlock(nx, y, nz);
 }
 
 BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
@@ -225,7 +261,7 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
     MeshData data;
 
     // Vertex offsets for a unit cube at origin
-    glm::vec3 p000(0, 0, 0);
+    Vector3f p000(0, 0, 0);
     glm::vec3 p001(0, 0, 1);
     glm::vec3 p010(0, 1, 0);
     glm::vec3 p011(0, 1, 1);

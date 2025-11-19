@@ -4,6 +4,7 @@
 #include "Math/Vector.h"
 
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <vector>
 
@@ -19,7 +20,35 @@ struct MeshData
 
 struct BlockData
 {
-    std::vector<bool> Blocks = std::vector<bool>(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, false);
+    std::vector<uint8_t> Blocks; // 0 = air, 1 = solid, etc.
+
+    BlockData()
+    {
+        Blocks.resize(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0);
+    }
+
+    inline size_t Index(int x, int y, int z) const
+    {
+        return x + CHUNK_WIDTH * (z + CHUNK_WIDTH * y);
+    }
+
+    inline bool Get(int x, int y, int z) const
+    {
+        if (x < 0 || x >= CHUNK_WIDTH ||
+            y < 0 || y >= CHUNK_HEIGHT ||
+            z < 0 || z >= CHUNK_WIDTH)
+            return false; // outside chunk
+        return Blocks[Index(x, y, z)] != 0;
+    }
+
+    inline void Set(int x, int y, int z, bool value)
+    {
+        if (x < 0 || x >= CHUNK_WIDTH ||
+            y < 0 || y >= CHUNK_HEIGHT ||
+            z < 0 || z >= CHUNK_WIDTH)
+            return;
+        Blocks[Index(x, y, z)] = value ? 1 : 0;
+    }
 };
 
 class ChunkManager;
@@ -30,23 +59,34 @@ public:
     ~Chunk();
 
     void UploadMeshToGPU();
+    void DeleteGPUData();
     void Draw(const Shader &shader);
 
-    void SetBlockData(BlockData &data);
+    void SetBlockData(const BlockData &data);
     void SetMeshData(MeshData &data);
+
+    bool GetBlock(int x, int y, int z) const
+    {
+        return m_Blocks.Get(x, y, z);
+    }
 
 private:
     friend class ChunkManager;
 
     ChunkManager *m_ChunkManager = nullptr;
 
-    std::vector<bool> m_Blocks = std::vector<bool>(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, false);
+    // std::vector<uint8_t> m_Blocks = std::vector<uint8_t>(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0);
+    BlockData m_Blocks;
+    std::mutex m_Mutex;
 
     std::atomic<bool> m_NeedsRebuild{false};
     std::atomic<bool> m_BlocksReady{false};
     std::atomic<bool> m_MeshReady{false};
     std::atomic<bool> m_GpuReady{false};
     std::atomic<bool> m_IsGeneratingMesh{false};
+    std::atomic<bool> m_ShouldUnload{false};
+
+    std::atomic<int> m_PendingTasks{0};
 
     MeshData m_Mesh;
     std::mutex m_MeshMutex;

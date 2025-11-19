@@ -5,7 +5,3 @@ TabWidth: 5
 AccessModifierOffset: -4
 AlwaysBreakTemplateDeclarations: true
 ColumnLimit: 0
-
-
-# Lambda-specific tweaks
-BreakAfterLambdaArrow: true

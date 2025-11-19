@@ -6,9 +6,11 @@
 #include "ThreadPool.h"
 #include "World/Chunk.h"
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 class ChunkManager
 {
@@ -41,6 +43,7 @@ private:
     ThreadSafeQueue<ThreadTask<MeshData>> m_MeshQueue;
 
     std::unordered_map<Vector2i, std::shared_ptr<Chunk>> m_Chunks;
+    std::unordered_set<Vector2i> m_RequestedChunks;
     std::mutex m_ChunkMutex;
 
     ThreadPool m_ThreadPool;
