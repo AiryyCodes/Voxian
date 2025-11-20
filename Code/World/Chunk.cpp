@@ -7,17 +7,13 @@
 
 Chunk::~Chunk()
 {
-    if (m_GpuReady)
-    {
-        glDeleteVertexArrays(1, &m_VAO);
-        glDeleteBuffers(1, &m_VBO);
-        glDeleteBuffers(1, &m_EBO);
-    }
+    if (m_State == State::Done)
+        DeleteGPUData();
 }
 
 void Chunk::UploadMeshToGPU()
 {
-    if (m_GpuReady)
+    if (m_State != State::MeshReady)
         return;
 
     std::scoped_lock lock(m_MeshMutex);
@@ -48,13 +44,14 @@ void Chunk::UploadMeshToGPU()
     glEnableVertexAttribArray(3);
 
     glBindVertexArray(0);
-    m_GpuReady = true;
+
+    // Update state
+    SetState(State::Done);
 }
 
 void Chunk::DeleteGPUData()
 {
-    if (!m_GpuReady)
-        return;
+    std::scoped_lock lock(m_MeshMutex);
 
     if (m_VAO)
     {
@@ -72,12 +69,13 @@ void Chunk::DeleteGPUData()
         m_EBO = 0;
     }
 
-    m_GpuReady = false;
+    if (m_State == State::Done)
+        SetState(State::MeshReady); // fallback to indicate mesh exists but not on GPU
 }
 
 void Chunk::Draw(const Shader &shader)
 {
-    if (!m_GpuReady)
+    if (m_State != State::Done)
         return;
 
     glm::vec3 chunkWorldPos{m_Position.x * CHUNK_WIDTH, 0.0f, m_Position.y * CHUNK_WIDTH};
@@ -93,14 +91,14 @@ void Chunk::SetBlockData(const BlockData &data)
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
     m_Blocks = data; // Copy entire data safely
-    m_BlocksReady = true;
+    m_NeedsRebuild = true;
+    SetState(State::BlocksReady);
 }
 
 void Chunk::SetMeshData(MeshData &data)
 {
+    std::lock_guard<std::mutex> lock(m_MeshMutex);
     m_Mesh.Vertices = data.Vertices;
     m_Mesh.Indices = data.Indices;
-
-    m_MeshReady = true;
-    m_GpuReady = false;
+    SetState(State::MeshReady);
 }

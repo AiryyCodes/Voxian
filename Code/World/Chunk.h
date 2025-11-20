@@ -2,14 +2,17 @@
 
 #include "Graphics/Shader.h"
 #include "Math/Vector.h"
+#include "Memory.h"
+#include "World/Block.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <vector>
 
 #define CHUNK_WIDTH 16
-#define CHUNK_HEIGHT 512
+#define CHUNK_HEIGHT 256
 #define CHUNK_BASE_HEIGHT 64
 
 struct MeshData
@@ -20,42 +23,67 @@ struct MeshData
 
 struct BlockData
 {
-    std::vector<uint8_t> Blocks; // 0 = air, 1 = solid, etc.
+    std::vector<uint16_t> Indices;
 
     BlockData()
     {
-        Blocks.resize(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0);
+        Indices.resize(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0); // 0 = air
     }
 
-    inline size_t Index(int x, int y, int z) const
+    uint16_t Index(int x, int y, int z) const { return x + CHUNK_WIDTH * (z + CHUNK_WIDTH * y); }
+
+    std::shared_ptr<BlockState> Get(int x, int y, int z) const
     {
-        return x + CHUNK_WIDTH * (z + CHUNK_WIDTH * y);
+        if (x < 0 || x >= CHUNK_WIDTH || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_WIDTH)
+            return nullptr;
+
+        switch (Indices[Index(x, y, z)])
+        {
+        case 0:
+            return BLOCK_AIR;
+        case 1:
+            return BLOCK_STONE;
+        case 2:
+            return BLOCK_DIRT;
+        // ...
+        default:
+            return nullptr;
+        }
     }
 
-    inline bool Get(int x, int y, int z) const
+    void Set(int x, int y, int z, Ref<BlockState> block)
     {
-        if (x < 0 || x >= CHUNK_WIDTH ||
-            y < 0 || y >= CHUNK_HEIGHT ||
-            z < 0 || z >= CHUNK_WIDTH)
-            return false; // outside chunk
-        return Blocks[Index(x, y, z)] != 0;
-    }
-
-    inline void Set(int x, int y, int z, bool value)
-    {
-        if (x < 0 || x >= CHUNK_WIDTH ||
-            y < 0 || y >= CHUNK_HEIGHT ||
-            z < 0 || z >= CHUNK_WIDTH)
+        if (x < 0 || x >= CHUNK_WIDTH || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_WIDTH)
             return;
-        Blocks[Index(x, y, z)] = value ? 1 : 0;
+
+        if (block == BLOCK_AIR)
+            Indices[Index(x, y, z)] = 0;
+        else if (block == BLOCK_STONE)
+            Indices[Index(x, y, z)] = 1;
+        else if (block == BLOCK_DIRT)
+            Indices[Index(x, y, z)] = 2;
+        // ...
     }
+
+    bool IsAir(int x, int y, int z) const { return Get(x, y, z) == BLOCK_AIR; }
 };
 
 class ChunkManager;
 class Chunk
 {
 public:
-    Chunk(ChunkManager *chunkManager, int x = 0, int z = 0) : m_ChunkManager(chunkManager), m_Position(Vector2i(x, z)) {}
+    enum class State : uint8_t
+    {
+        Empty,       // No data generated yet
+        Generating,  // Blocks are being generated
+        BlocksReady, // Blocks ready, mesh not yet generated
+        MeshReady,   // Mesh generated but not uploaded to GPU
+        Done         // Fully ready (mesh uploaded)
+    };
+
+    Chunk(ChunkManager *chunkManager, int x = 0, int z = 0)
+        : m_ChunkManager(chunkManager), m_Position(x, z), m_State(State::Empty) {}
+
     ~Chunk();
 
     void UploadMeshToGPU();
@@ -65,33 +93,37 @@ public:
     void SetBlockData(const BlockData &data);
     void SetMeshData(MeshData &data);
 
-    bool GetBlock(int x, int y, int z) const
+    Ref<BlockState> GetBlock(int x, int y, int z) const
     {
         return m_Blocks.Get(x, y, z);
     }
+
+    Vector2i GetPosition() const { return m_Position; }
+
+    // Thread-safe state check
+    State GetState() const { return m_State.load(std::memory_order_acquire); }
+    void SetState(State state) { m_State.store(state, std::memory_order_release); }
+
+    // Dirty/rebuild flag
+    std::atomic<bool> m_NeedsRebuild{false};
+    std::atomic<bool> m_ShouldUnload{false};
 
 private:
     friend class ChunkManager;
 
     ChunkManager *m_ChunkManager = nullptr;
 
-    // std::vector<uint8_t> m_Blocks = std::vector<uint8_t>(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0);
     BlockData m_Blocks;
-    std::mutex m_Mutex;
-
-    std::atomic<bool> m_NeedsRebuild{false};
-    std::atomic<bool> m_BlocksReady{false};
-    std::atomic<bool> m_MeshReady{false};
-    std::atomic<bool> m_GpuReady{false};
-    std::atomic<bool> m_IsGeneratingMesh{false};
-    std::atomic<bool> m_ShouldUnload{false};
-
-    std::atomic<int> m_PendingTasks{0};
-
     MeshData m_Mesh;
+
+    mutable std::mutex m_Mutex; // Protects block & mesh data
     std::mutex m_MeshMutex;
 
+    // GPU handles
     unsigned int m_VAO = 0, m_VBO = 0, m_EBO = 0;
 
     Vector2i m_Position;
+
+    // Current chunk state
+    std::atomic<State> m_State;
 };

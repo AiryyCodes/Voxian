@@ -1,12 +1,14 @@
 #pragma once
 
+#include "FastNoiseLite.h"
 #include "Graphics/Shader.h"
 #include "Math/Vector.h"
+#include "Memory.h"
 #include "Queue.h"
 #include "ThreadPool.h"
+#include "World/Block.h"
 #include "World/Chunk.h"
 
-#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -22,7 +24,7 @@ public:
     void Update(const Shader &shader);
 
 private:
-    bool GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData);
+    Ref<BlockState> GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData);
 
     int GetBlockIndex(int x, int y, int z) const;
 
@@ -35,7 +37,7 @@ private:
 private:
     const int m_MaxRebuildsPerFrame = 2;
 
-    int m_ViewDistance = 12;
+    int m_ViewDistance = 8;
 
     Vector3f m_PlayerPosition;
 
@@ -47,4 +49,6 @@ private:
     std::mutex m_ChunkMutex;
 
     ThreadPool m_ThreadPool;
+
+    FastNoiseLite m_Noise;
 };
