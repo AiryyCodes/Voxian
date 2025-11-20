@@ -24,7 +24,7 @@ public:
     void Update(const Shader &shader);
 
 private:
-    Ref<BlockState> GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData);
+    const BlockState &GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData);
 
     int GetBlockIndex(int x, int y, int z) const;
 

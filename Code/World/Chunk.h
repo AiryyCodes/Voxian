@@ -27,45 +27,33 @@ struct BlockData
 
     BlockData()
     {
-        Indices.resize(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0); // 0 = air
+        Indices.resize(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0);
     }
 
-    uint16_t Index(int x, int y, int z) const { return x + CHUNK_WIDTH * (z + CHUNK_WIDTH * y); }
-
-    std::shared_ptr<BlockState> Get(int x, int y, int z) const
+    inline uint32_t Index(int x, int y, int z) const
     {
-        if (x < 0 || x >= CHUNK_WIDTH || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_WIDTH)
-            return nullptr;
-
-        switch (Indices[Index(x, y, z)])
-        {
-        case 0:
-            return BLOCK_AIR;
-        case 1:
-            return BLOCK_STONE;
-        case 2:
-            return BLOCK_DIRT;
-        // ...
-        default:
-            return nullptr;
-        }
+        return x + CHUNK_WIDTH * (z + CHUNK_WIDTH * y);
     }
 
-    void Set(int x, int y, int z, Ref<BlockState> block)
+    inline uint16_t GetID(int x, int y, int z) const
     {
-        if (x < 0 || x >= CHUNK_WIDTH || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_WIDTH)
-            return;
-
-        if (block == BLOCK_AIR)
-            Indices[Index(x, y, z)] = 0;
-        else if (block == BLOCK_STONE)
-            Indices[Index(x, y, z)] = 1;
-        else if (block == BLOCK_DIRT)
-            Indices[Index(x, y, z)] = 2;
-        // ...
+        return Indices[Index(x, y, z)];
     }
 
-    bool IsAir(int x, int y, int z) const { return Get(x, y, z) == BLOCK_AIR; }
+    inline void SetID(int x, int y, int z, uint16_t id)
+    {
+        Indices[Index(x, y, z)] = id;
+    }
+
+    inline const BlockState &Get(int x, int y, int z) const
+    {
+        return g_BlockRegistry.Get(GetID(x, y, z));
+    }
+
+    inline bool IsAir(int x, int y, int z) const
+    {
+        return GetID(x, y, z) == 0;
+    }
 };
 
 class ChunkManager;
@@ -93,7 +81,7 @@ public:
     void SetBlockData(const BlockData &data);
     void SetMeshData(MeshData &data);
 
-    Ref<BlockState> GetBlock(int x, int y, int z) const
+    const BlockState &GetBlock(int x, int y, int z) const
     {
         return m_Blocks.Get(x, y, z);
     }

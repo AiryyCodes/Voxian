@@ -254,7 +254,7 @@ void ChunkManager::Update(const Shader &shader)
         }
     }
 
-    LOG_INFO("Chunks: {}", m_Chunks.size());
+    // LOG_INFO("Chunks: {}", m_Chunks.size());
 }
 
 std::shared_ptr<Chunk> ChunkManager::GetChunk(int x, int z)
@@ -264,8 +264,11 @@ std::shared_ptr<Chunk> ChunkManager::GetChunk(int x, int z)
     return it != m_Chunks.end() ? it->second : nullptr;
 }
 
-Ref<BlockState> ChunkManager::GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData)
+const BlockState &ChunkManager::GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData)
 {
+    if (y < 0 || y >= CHUNK_HEIGHT)
+        return g_BlockRegistry.Get(BLOCK_AIR);
+
     // Inside local chunk
     if (x >= 0 && x < CHUNK_WIDTH &&
         y >= 0 && y < CHUNK_HEIGHT &&
@@ -283,7 +286,7 @@ Ref<BlockState> ChunkManager::GetBlock(int x, int y, int z, int chunkX, int chun
 
     auto neighbor = GetChunk(neighborChunkX, neighborChunkZ);
     if (!neighbor || neighbor->GetState() < Chunk::State::BlocksReady)
-        return nullptr;
+        return g_BlockRegistry.Get(BLOCK_AIR);
 
     std::lock_guard<std::mutex> lock(neighbor->m_Mutex);
     return neighbor->m_Blocks.Get(nx, y, nz);
@@ -292,8 +295,6 @@ Ref<BlockState> ChunkManager::GetBlock(int x, int y, int z, int chunkX, int chun
 BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
 {
     BlockData data;
-    // stone index into global palette (assuming BLOCK_STONE -> index 1)
-    const uint16_t stoneIndex = 1;
 
     // cache size
     const int W = CHUNK_WIDTH;
@@ -327,7 +328,7 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
             size_t idx = start;
             for (int y = 0; y < terrainHeight; ++y)
             {
-                data.Indices[idx] = stoneIndex;
+                data.Indices[idx] = BLOCK_DIRT;
                 idx += yStride;
             }
         }
@@ -350,7 +351,7 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
         {
             for (int z = 0; z < CHUNK_WIDTH; ++z)
             {
-                if (blockData.IsAir(x, y, z))
+                if (GetBlock(x, y, z, chunkX, chunkZ, blockData).IsAir())
                     continue;
 
                 glm::vec3 blockPos(x, y, z);
@@ -375,7 +376,8 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                     int ny = y + face.normal.y;
                     int nz = z + face.normal.z;
 
-                    if (!blockData.IsAir(nx, ny, nz))
+                    // TODO: May have to change
+                    if (!GetBlock(nx, ny, nz, chunkX, chunkZ, blockData).IsAir())
                         continue;
 
                     auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
@@ -445,9 +447,9 @@ std::array<float, 4> ChunkManager::GetVertexAOs(const BlockData &localData, cons
         const Vector3i &p2 = neighbors[1];
         const Vector3i &p3 = neighbors[2];
 
-        bool s1 = GetBlock(blockPos.x + p1.x, blockPos.y + p1.y, blockPos.z + p1.z, chunkPos.x, chunkPos.y, localData) != nullptr;
-        bool s2 = GetBlock(blockPos.x + p2.x, blockPos.y + p2.y, blockPos.z + p2.z, chunkPos.x, chunkPos.y, localData) != nullptr;
-        bool c = GetBlock(blockPos.x + p3.x, blockPos.y + p3.y, blockPos.z + p3.z, chunkPos.x, chunkPos.y, localData) != nullptr;
+        bool s1 = GetBlock(blockPos.x + p1.x, blockPos.y + p1.y, blockPos.z + p1.z, chunkPos.x, chunkPos.y, localData).IsSolid();
+        bool s2 = GetBlock(blockPos.x + p2.x, blockPos.y + p2.y, blockPos.z + p2.z, chunkPos.x, chunkPos.y, localData).IsSolid();
+        bool c = GetBlock(blockPos.x + p3.x, blockPos.y + p3.y, blockPos.z + p3.z, chunkPos.x, chunkPos.y, localData).IsSolid();
 
         ao[i] = getOcclusion(s1, s2, c);
     }
