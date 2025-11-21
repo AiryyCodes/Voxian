@@ -27,7 +27,7 @@ public:
     const Matrices &GetMatrices() const { return m_Matrices; }
 
 private:
-    Vector3f m_Position = Vector3f(CHUNK_WIDTH / 2.0f, CHUNK_BASE_HEIGHT + 4.0f, CHUNK_WIDTH / 2.0f);
+    Vector3f m_Position = Vector3f(CHUNK_WIDTH / 2.0f, CHUNK_BASE_HEIGHT + 16.0f, CHUNK_WIDTH / 2.0f);
     // Vector3f m_Position = Vector3f(0.0f, 0.0f, 0.0f);
     Vector3f m_Rotation = Vector3f(0.0f, 0.0f, 0.0f);
 

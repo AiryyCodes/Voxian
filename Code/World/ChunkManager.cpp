@@ -2,8 +2,10 @@
 #include "World/ChunkManager.h"
 #include "FastNoiseLite.h"
 #include "Graphics/Shader.h"
+#include "Graphics/Texture.h"
 #include "Logger.h"
 #include "Math/Vector.h"
+#include "Memory.h"
 #include "Queue.h"
 #include "World/Block.h"
 #include "World/Chunk.h"
@@ -285,36 +287,56 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
     const int W = CHUNK_WIDTH;
     const int H = CHUNK_HEIGHT;
 
-    // Padded dimensions
     const int PW = W + 2;
     const int PH = H + 2;
 
-    // Loop over padded coordinates
+    const float amplitude = 20.0f;
+    const int minDirt = 1;
+    const int maxDirt = 1;
+    const int seaLevel = CHUNK_BASE_HEIGHT;
+
     for (int px = 0; px < PW; ++px)
     {
         for (int pz = 0; pz < PW; ++pz)
         {
-            // Convert padded coords → world coords
             int wx = chunkX * W + (px - 1);
             int wz = chunkZ * W + (pz - 1);
 
-            // Noise-based terrain height
+            // Base terrain noise
             float hNoise = m_Noise.GetNoise(float(wx), float(wz));
-            int height = int(CHUNK_BASE_HEIGHT + hNoise * 15.0f);
+            int terrainHeight = int(CHUNK_BASE_HEIGHT + hNoise * amplitude);
 
-            if (height < 0)
-                height = 0;
-            if (height > H)
-                height = H;
+            if (terrainHeight < 0)
+                terrainHeight = 0;
+            if (terrainHeight >= H)
+                terrainHeight = H - 1;
 
-            // Fill the vertical column
+            // Optional: vary dirt thickness per column
+            int dirtThickness = minDirt + (int)(m_Noise.GetNoise(float(wx + 1000), float(wz + 1000)) * (maxDirt - minDirt));
+            if (dirtThickness < minDirt)
+                dirtThickness = minDirt;
+            if (dirtThickness > maxDirt)
+                dirtThickness = maxDirt;
+
+            int stoneHeight = terrainHeight - dirtThickness;
+            if (stoneHeight < 1)
+                stoneHeight = 1; // always leave at least 1 stone block
+
             for (int py = 0; py < PH; ++py)
             {
-                int wy = py - 1; // convert padded y → world y
+                int wy = py - 1;
+                uint16_t id = BLOCK_AIR;
 
-                uint16_t id = 0; // air by default
-                if (wy >= 0 && wy < height)
+                if (wy <= 0)
+                    id = BLOCK_BEDROCK;
+                else if (wy > terrainHeight)
+                    id = BLOCK_AIR;
+                else if (wy == terrainHeight)
+                    id = BLOCK_GRASS;
+                else if (wy >= stoneHeight)
                     id = BLOCK_DIRT;
+                else
+                    id = BLOCK_STONE;
 
                 data.SetID(px, py, pz, id);
             }
@@ -338,8 +360,11 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
         {
             for (int z = 0; z < CHUNK_WIDTH; ++z)
             {
-                if (GetBlock(x, y, z, chunkX, chunkZ, blockData).IsAir())
+                const BlockState &state = GetBlock(x, y, z, chunkX, chunkZ, blockData);
+                if (state.IsAir())
                     continue;
+
+                int blockId = state.GetId();
 
                 Vector3 blockPos(x, y, z);
 
@@ -368,19 +393,23 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                         continue;
 
                     auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
-                    unsigned int baseIndex = data.Vertices.size() / 9;
+                    unsigned int baseIndex = data.Vertices.size();
 
                     auto pushVertex = [&](Vector3f pos, Vector3i normal, Vector2f uv, float aoValue)
                     {
-                        data.Vertices.push_back(pos.x);
-                        data.Vertices.push_back(pos.y);
-                        data.Vertices.push_back(pos.z);
-                        data.Vertices.push_back(normal.x);
-                        data.Vertices.push_back(normal.y);
-                        data.Vertices.push_back(normal.z);
-                        data.Vertices.push_back(uv.x);
-                        data.Vertices.push_back(uv.y);
-                        data.Vertices.push_back(aoValue);
+                        Ref<TextureArray2D> texture = g_BlockRegistry.GetTexture();
+                        if (!texture)
+                            return;
+
+                        BlockVertex vertex;
+                        vertex.Position = pos;
+                        vertex.Normal = normal;
+                        vertex.UV = uv;
+                        vertex.TextureSize = Vector2i(texture->GetWidth((blockId + 1) * 6), texture->GetHeight((blockId + 1) * 6));
+                        vertex.Layer = (blockId + 1) * 6;
+                        vertex.AO = aoValue;
+
+                        data.Vertices.push_back(vertex);
                     };
 
                     pushVertex(face.v0, face.normal, uv0, ao[0]);

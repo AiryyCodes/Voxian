@@ -7,6 +7,7 @@
 #include "Graphics/Window.h"
 #include "Logger.h"
 #include "Time.h"
+#include "World/Block.h"
 #include "World/ChunkManager.h"
 
 int main()
@@ -47,6 +48,8 @@ int main()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     Input::SetCursorMode(CursorMode::Locked);
+
+    g_BlockRegistry.Init();
 
     Camera camera;
 

@@ -1,11 +1,10 @@
 #pragma once
 
 #include "Graphics/Shader.h"
+#include "Graphics/Vertex.h"
 #include "Math/Vector.h"
-#include "Memory.h"
 #include "World/Block.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <mutex>
@@ -17,7 +16,7 @@
 
 struct MeshData
 {
-    std::vector<float> Vertices;
+    std::vector<BlockVertex> Vertices;
     std::vector<unsigned int> Indices;
 };
 
@@ -107,14 +106,12 @@ private:
     BlockData m_Blocks;
     MeshData m_Mesh;
 
-    mutable std::mutex m_Mutex; // Protects block & mesh data
+    mutable std::mutex m_Mutex;
     std::mutex m_MeshMutex;
 
-    // GPU handles
     unsigned int m_VAO = 0, m_VBO = 0, m_EBO = 0;
 
     Vector2i m_Position;
 
-    // Current chunk state
     std::atomic<State> m_State;
 };

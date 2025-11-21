@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Graphics/Texture.h"
+#include "Logger.h"
 #include "Memory.h"
 
 #include <cstdint>
@@ -33,14 +35,13 @@ public:
     {
     }
 
-    // --- Basic data getters ---
     const std::string &GetName() const { return m_Name; }
+    int GetId() const { return m_Id; }
 
     bool IsAir() const { return m_IsAir; }
     bool IsSolid() const { return m_IsSolid; }
     bool IsTransparent() const { return m_IsTransparent; }
 
-    // --- Basic data setters (used during registration only) ---
     BlockState &SetAir(bool value = true)
     {
         m_IsAir = value;
@@ -57,7 +58,6 @@ public:
         return *this;
     }
 
-    // --- Integer properties ---
     void SetIntProperty(const std::string &key, int value)
     {
         m_IntProperties[key] = value;
@@ -74,7 +74,6 @@ public:
         return it != m_IntProperties.end() ? it->second : defaultValue;
     }
 
-    // --- String properties ---
     void SetStringProperty(const std::string &key, const std::string &value)
     {
         m_StringProperties[key] = value;
@@ -92,15 +91,30 @@ public:
         return it != m_StringProperties.end() ? it->second : defaultValue;
     }
 
-private:
-    std::string m_Name;
+    int GetFrontLayer() const { return GetBaseOffset() + 0; }
+    int GetBackLayer() const { return GetBaseOffset() + 1; }
+    int GetLeftLayer() const { return GetBaseOffset() + 2; }
+    int GetRightLayer() const { return GetBaseOffset() + 3; }
+    int GetTopLayer() const { return GetBaseOffset() + 4; }
+    int GetBottomLayer() const { return GetBaseOffset() + 5; }
 
-    // - Flags describing block behavior -
+private:
+    int GetBaseOffset() const
+    {
+        return ((m_Id + 1) == 1) ? 0 : ((m_Id + 1) == 2) ? 6
+                                                         : ((m_Id + 1) - 1) * 6;
+    }
+
+private:
+    friend class BlockRegistry;
+
+    std::string m_Name;
+    int m_Id;
+
     bool m_IsAir = false;
     bool m_IsSolid = true;
     bool m_IsTransparent = false;
 
-    // - Moddable per-block properties -
     std::unordered_map<std::string, int> m_IntProperties;
     std::unordered_map<std::string, std::string> m_StringProperties;
 };
@@ -108,19 +122,31 @@ private:
 class BlockRegistry
 {
 public:
-    uint16_t Register(const BlockState &state)
+    void Init();
+
+    uint16_t Register(BlockState state)
     {
         uint16_t id = m_States.size();
         m_States.push_back(state);
-        NameToID[state.GetName()] = id;
+        m_NameToId[state.GetName()] = id;
+
+        state.m_Id = id;
+
         return id;
     }
 
     const BlockState &Get(uint16_t id) const { return m_States[id]; }
 
+    Ref<TextureArray2D> GetTexture() const
+    {
+        return m_Texture;
+    }
+
 private:
     std::vector<BlockState> m_States;
-    std::unordered_map<std::string, uint16_t> NameToID;
+    std::unordered_map<std::string, uint16_t> m_NameToId;
+
+    Ref<TextureArray2D> m_Texture;
 };
 
 inline BlockRegistry g_BlockRegistry;
@@ -131,8 +157,14 @@ inline uint16_t BLOCK_AIR = g_BlockRegistry.Register(
         .SetSolid(false)
         .SetTransparent(true));
 
-inline uint16_t BLOCK_STONE = g_BlockRegistry.Register(
-    BlockState("stone"));
+inline uint16_t BLOCK_GRASS = g_BlockRegistry.Register(
+    BlockState("grass"));
 
 inline uint16_t BLOCK_DIRT = g_BlockRegistry.Register(
     BlockState("dirt"));
+
+inline uint16_t BLOCK_STONE = g_BlockRegistry.Register(
+    BlockState("stone"));
+
+inline uint16_t BLOCK_BEDROCK = g_BlockRegistry.Register(
+    BlockState("bedrock"));

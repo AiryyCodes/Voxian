@@ -1,8 +1,13 @@
 
 #include "World/Chunk.h"
+#include "Graphics/Texture.h"
+#include "Graphics/Vertex.h"
 #include "Math/Matrix.h"
 #include "Math/Vector.h"
+#include "Memory.h"
+#include "World/Block.h"
 
+#include <cstddef>
 #include <glad/gl.h>
 #include <FastNoiseLite.h>
 #include <mutex>
@@ -30,20 +35,30 @@ void Chunk::UploadMeshToGPU()
     glBindVertexArray(m_VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-    glBufferData(GL_ARRAY_BUFFER, m_Mesh.Vertices.size() * sizeof(float), m_Mesh.Vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, m_Mesh.Vertices.size() * sizeof(BlockVertex), m_Mesh.Vertices.data(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_Mesh.Indices.size() * sizeof(unsigned int), m_Mesh.Indices.data(), GL_STATIC_DRAW);
 
-    GLsizei stride = 9 * sizeof(float);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)0);
+    GLsizei stride = sizeof(BlockVertex);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void *)(offsetof(BlockVertex, Position)));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void *)(3 * sizeof(float)));
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void *)(offsetof(BlockVertex, Normal)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void *)(6 * sizeof(float)));
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void *)(offsetof(BlockVertex, UV)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, (void *)(8 * sizeof(float)));
+
+    glVertexAttribIPointer(3, 2, GL_INT, stride, (void *)(offsetof(BlockVertex, TextureSize)));
     glEnableVertexAttribArray(3);
+
+    glEnableVertexAttribArray(4);
+    glVertexAttribIPointer(4, 1, GL_INT, stride, (void *)(offsetof(BlockVertex, Layer)));
+
+    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, stride, (void *)(offsetof(BlockVertex, AO)));
+    glEnableVertexAttribArray(5);
 
     glBindVertexArray(0);
 
@@ -83,6 +98,15 @@ void Chunk::Draw(const Shader &shader)
     Vector3f chunkWorldPos{m_Position.x * CHUNK_WIDTH, 0.0f, m_Position.y * CHUNK_WIDTH};
     Matrix4 model = glm::translate(Matrix4(1.0f), chunkWorldPos);
     shader.SetUniform("u_Model", model);
+
+    Ref<TextureArray2D> texture = g_BlockRegistry.GetTexture();
+    if (!texture)
+        return;
+
+    texture->Bind(shader);
+
+    shader.SetUniform("u_Block.Diffuse", 0);
+    shader.SetUniform("u_Block.MaxTexSize", Vector2(texture->GetMaxWidth(), texture->GetMaxHeight()));
 
     glBindVertexArray(m_VAO);
     glDrawElements(GL_TRIANGLES, m_Mesh.Indices.size(), GL_UNSIGNED_INT, 0);
