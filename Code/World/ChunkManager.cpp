@@ -4,7 +4,6 @@
 #include "Graphics/Shader.h"
 #include "Logger.h"
 #include "Math/Vector.h"
-#include "Memory.h"
 #include "Queue.h"
 #include "World/Block.h"
 #include "World/Chunk.h"
@@ -70,9 +69,7 @@ void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
         int(std::floor(pos.x / CHUNK_WIDTH)),
         int(std::floor(pos.z / CHUNK_WIDTH))};
 
-    // -------------------------
     // Calculate desired chunks
-    // -------------------------
     std::vector<std::pair<int, Vector2i>> desired;
     for (int dz = -m_ViewDistance; dz <= m_ViewDistance; dz++)
     {
@@ -88,9 +85,7 @@ void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
               [](auto &a, auto &b)
               { return a.first < b.first; });
 
-    // -------------------------
     // Mark unloads
-    // -------------------------
     {
         std::scoped_lock lock(m_ChunkMutex);
         for (auto &[pos, chunk] : m_Chunks)
@@ -135,27 +130,21 @@ void ChunkManager::Update(const Shader &shader)
     int pz = static_cast<int>(std::floor(m_PlayerPosition.z / CHUNK_WIDTH));
     Vector2i playerChunk{px, pz};
 
-    // -------------------------
     // Apply block results
-    // -------------------------
     ThreadTask<BlockData> blockTask;
     while (m_BlockQueue.pop(blockTask))
     {
         blockTask.callback(blockTask.result);
     }
 
-    // -------------------------
     // Apply mesh results
-    // -------------------------
     ThreadTask<MeshData> meshTask;
     while (m_MeshQueue.pop(meshTask))
     {
         meshTask.callback(meshTask.result);
     }
 
-    // -------------------------
     // Collect chunks that need mesh rebuild
-    // -------------------------
     std::vector<std::shared_ptr<Chunk>> dirtyChunks;
     {
         std::scoped_lock lock(m_ChunkMutex);
@@ -182,9 +171,7 @@ void ChunkManager::Update(const Shader &shader)
                   return (dxA * dxA + dzA * dzA) < (dxB * dxB + dzB * dzB);
               });
 
-    // -------------------------
     // Post mesh rebuild tasks
-    // -------------------------
     int rebuildCount = 0;
     for (auto &chunk : dirtyChunks)
     {
@@ -212,9 +199,7 @@ void ChunkManager::Update(const Shader &shader)
         rebuildCount++;
     }
 
-    // -------------------------
     // Upload meshes, draw, unload
-    // -------------------------
     const int renderDistance = m_ViewDistance;
 
     std::scoped_lock lock(m_ChunkMutex);
@@ -264,72 +249,74 @@ std::shared_ptr<Chunk> ChunkManager::GetChunk(int x, int z)
     return it != m_Chunks.end() ? it->second : nullptr;
 }
 
-const BlockState &ChunkManager::GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData)
+const BlockState &ChunkManager::GetBlock(
+    int x, int y, int z,
+    int chunkX, int chunkZ,
+    const BlockData &localData)
 {
-    if (y < 0 || y >= CHUNK_HEIGHT)
+    // Height check (padded supports y=-1 and y=H)
+    if (y < -1 || y > CHUNK_HEIGHT)
         return g_BlockRegistry.Get(BLOCK_AIR);
 
-    // Inside local chunk
-    if (x >= 0 && x < CHUNK_WIDTH &&
-        y >= 0 && y < CHUNK_HEIGHT &&
-        z >= 0 && z < CHUNK_WIDTH)
+    // Convert to padded coordinates
+    int px = x + 1;
+    int py = y + 1;
+    int pz = z + 1;
+
+    // Padded bounds:
+    // px: 0 .. W+1
+    // py: 0 .. H+1
+    // pz: 0 .. W+1
+    if (px < 0 || px >= BlockData::PW ||
+        py < 0 || py >= BlockData::PH ||
+        pz < 0 || pz >= BlockData::PW)
     {
-        return localData.Get(x, y, z);
+        return g_BlockRegistry.Get(BLOCK_AIR);
     }
 
-    // Determine neighbor chunk
-    int neighborChunkX = chunkX + (x < 0 ? -1 : (x >= CHUNK_WIDTH ? 1 : 0));
-    int neighborChunkZ = chunkZ + (z < 0 ? -1 : (z >= CHUNK_WIDTH ? 1 : 0));
-
-    int nx = (x + CHUNK_WIDTH) % CHUNK_WIDTH;
-    int nz = (z + CHUNK_WIDTH) % CHUNK_WIDTH;
-
-    auto neighbor = GetChunk(neighborChunkX, neighborChunkZ);
-    if (!neighbor || neighbor->GetState() < Chunk::State::BlocksReady)
-        return g_BlockRegistry.Get(BLOCK_AIR);
-
-    std::lock_guard<std::mutex> lock(neighbor->m_Mutex);
-    return neighbor->m_Blocks.Get(nx, y, nz);
+    // Direct sample from padded chunk
+    return localData.Get(px, py, pz);
 }
 
 BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
 {
     BlockData data;
 
-    // cache size
     const int W = CHUNK_WIDTH;
     const int H = CHUNK_HEIGHT;
 
-    // For speed: precompute column base offsets for x/z
-    for (int x = 0; x < W; ++x)
+    // Padded dimensions
+    const int PW = W + 2;
+    const int PH = H + 2;
+
+    // Loop over padded coordinates
+    for (int px = 0; px < PW; ++px)
     {
-        for (int z = 0; z < W; ++z)
+        for (int pz = 0; pz < PW; ++pz)
         {
-            float worldX = float(chunkX * W + x);
-            float worldZ = float(chunkZ * W + z);
+            // Convert padded coords → world coords
+            int wx = chunkX * W + (px - 1);
+            int wz = chunkZ * W + (pz - 1);
 
-            float heightNoise = m_Noise.GetNoise(worldX, worldZ);
-            int terrainHeight = static_cast<int>(CHUNK_BASE_HEIGHT + heightNoise * 15.0f);
-            if (terrainHeight <= 0)
-                continue;
-            if (terrainHeight > H)
-                terrainHeight = H;
+            // Noise-based terrain height
+            float hNoise = m_Noise.GetNoise(float(wx), float(wz));
+            int height = int(CHUNK_BASE_HEIGHT + hNoise * 15.0f);
 
-            // index of (x,0,z)
-            size_t start = static_cast<size_t>(x + W * (z + W * 0));
-            // stride for y -> index delta per +1 y is W*W
-            size_t yStride = static_cast<size_t>(W) * static_cast<size_t>(W);
+            if (height < 0)
+                height = 0;
+            if (height > H)
+                height = H;
 
-            // We'll fill Indices[start + y*yStride] for y in [0, terrainHeight)
-            // This is not contiguous in memory in your current layout (x + W*(z + W*y))
-            // but we can avoid per-voxel heavy operations by writing a small inner loop
-            // that writes the column with minimal overhead.
-
-            size_t idx = start;
-            for (int y = 0; y < terrainHeight; ++y)
+            // Fill the vertical column
+            for (int py = 0; py < PH; ++py)
             {
-                data.Indices[idx] = BLOCK_DIRT;
-                idx += yStride;
+                int wy = py - 1; // convert padded y → world y
+
+                uint16_t id = 0; // air by default
+                if (wy >= 0 && wy < height)
+                    id = BLOCK_DIRT;
+
+                data.SetID(px, py, pz, id);
             }
         }
     }
@@ -341,9 +328,9 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
 {
     MeshData data;
 
-    glm::vec3 p000(0, 0, 0), p001(0, 0, 1), p010(0, 1, 0), p011(0, 1, 1);
-    glm::vec3 p100(1, 0, 0), p101(1, 0, 1), p110(1, 1, 0), p111(1, 1, 1);
-    glm::vec2 uv0(0, 1), uv1(1, 1), uv2(1, 0), uv3(0, 0);
+    Vector3f p000(0, 0, 0), p001(0, 0, 1), p010(0, 1, 0), p011(0, 1, 1);
+    Vector3f p100(1, 0, 0), p101(1, 0, 1), p110(1, 1, 0), p111(1, 1, 1);
+    Vector2f uv0(0, 1), uv1(1, 1), uv2(1, 0), uv3(0, 0);
 
     for (int x = 0; x < CHUNK_WIDTH; ++x)
     {
@@ -354,20 +341,20 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                 if (GetBlock(x, y, z, chunkX, chunkZ, blockData).IsAir())
                     continue;
 
-                glm::vec3 blockPos(x, y, z);
+                Vector3 blockPos(x, y, z);
 
                 struct Face
                 {
-                    glm::vec3 v0, v1, v2, v3;
-                    glm::ivec3 normal;
+                    Vector3f v0, v1, v2, v3;
+                    Vector3i normal;
                 };
                 Face faces[6] = {
-                    {blockPos + p100, blockPos + p101, blockPos + p111, blockPos + p110, glm::ivec3(1, 0, 0)},
-                    {blockPos + p001, blockPos + p000, blockPos + p010, blockPos + p011, glm::ivec3(-1, 0, 0)},
-                    {blockPos + p010, blockPos + p110, blockPos + p111, blockPos + p011, glm::ivec3(0, 1, 0)},
-                    {blockPos + p000, blockPos + p100, blockPos + p101, blockPos + p001, glm::ivec3(0, -1, 0)},
-                    {blockPos + p101, blockPos + p001, blockPos + p011, blockPos + p111, glm::ivec3(0, 0, 1)},
-                    {blockPos + p000, blockPos + p100, blockPos + p110, blockPos + p010, glm::ivec3(0, 0, -1)},
+                    {blockPos + p100, blockPos + p101, blockPos + p111, blockPos + p110, Vector3i(1, 0, 0)},
+                    {blockPos + p001, blockPos + p000, blockPos + p010, blockPos + p011, Vector3i(-1, 0, 0)},
+                    {blockPos + p010, blockPos + p110, blockPos + p111, blockPos + p011, Vector3i(0, 1, 0)},
+                    {blockPos + p000, blockPos + p100, blockPos + p101, blockPos + p001, Vector3i(0, -1, 0)},
+                    {blockPos + p101, blockPos + p001, blockPos + p011, blockPos + p111, Vector3i(0, 0, 1)},
+                    {blockPos + p000, blockPos + p100, blockPos + p110, blockPos + p010, Vector3i(0, 0, -1)},
                 };
 
                 for (auto &face : faces)
@@ -383,7 +370,7 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                     auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
                     unsigned int baseIndex = data.Vertices.size() / 9;
 
-                    auto pushVertex = [&](glm::vec3 pos, glm::vec3 normal, glm::vec2 uv, float aoValue)
+                    auto pushVertex = [&](Vector3f pos, Vector3i normal, Vector2f uv, float aoValue)
                     {
                         data.Vertices.push_back(pos.x);
                         data.Vertices.push_back(pos.y);
@@ -454,8 +441,8 @@ std::array<float, 4> ChunkManager::GetVertexAOs(const BlockData &localData, cons
         ao[i] = getOcclusion(s1, s2, c);
     }
 
-    if (faceNormal == Vector3i(0, -1, 0))
-        std::swap(ao[1], ao[3]);
+    // if (faceNormal == Vector3i(0, -1, 0))
+    // std::swap(ao[1], ao[3]);
 
     return ao;
 }

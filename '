@@ -40,7 +40,7 @@ private:
 private:
     const int m_MaxRebuildsPerFrame = 2;
 
-    int m_ViewDistance = 12;
+    int m_ViewDistance = 16;
 
     Vector3f m_PlayerPosition;
 

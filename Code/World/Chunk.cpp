@@ -1,5 +1,7 @@
 
 #include "World/Chunk.h"
+#include "Math/Matrix.h"
+#include "Math/Vector.h"
 
 #include <glad/gl.h>
 #include <FastNoiseLite.h>
@@ -78,8 +80,8 @@ void Chunk::Draw(const Shader &shader)
     if (m_State != State::Done)
         return;
 
-    glm::vec3 chunkWorldPos{m_Position.x * CHUNK_WIDTH, 0.0f, m_Position.y * CHUNK_WIDTH};
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), chunkWorldPos);
+    Vector3f chunkWorldPos{m_Position.x * CHUNK_WIDTH, 0.0f, m_Position.y * CHUNK_WIDTH};
+    Matrix4 model = glm::translate(Matrix4(1.0f), chunkWorldPos);
     shader.SetUniform("u_Model", model);
 
     glBindVertexArray(m_VAO);
@@ -90,7 +92,7 @@ void Chunk::Draw(const Shader &shader)
 void Chunk::SetBlockData(const BlockData &data)
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
-    m_Blocks = data; // Copy entire data safely
+    m_Blocks = data;
     m_NeedsRebuild = true;
     SetState(State::BlocksReady);
 }

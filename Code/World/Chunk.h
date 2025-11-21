@@ -23,16 +23,19 @@ struct MeshData
 
 struct BlockData
 {
+    static constexpr int PW = CHUNK_WIDTH + 2;  // padded width
+    static constexpr int PH = CHUNK_HEIGHT + 2; // padded height
+
     std::vector<uint16_t> Indices;
 
     BlockData()
     {
-        Indices.resize(CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_WIDTH, 0);
+        Indices.resize(PW * PH * PW, 0);
     }
 
     inline uint32_t Index(int x, int y, int z) const
     {
-        return x + CHUNK_WIDTH * (z + CHUNK_WIDTH * y);
+        return x + PW * (z + PW * y);
     }
 
     inline uint16_t GetID(int x, int y, int z) const
