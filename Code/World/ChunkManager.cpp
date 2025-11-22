@@ -208,44 +208,71 @@ void ChunkManager::Update(const Shader &shader)
     // Upload meshes, draw, unload
     const int renderDistance = m_ViewDistance;
 
-    std::scoped_lock lock(m_ChunkMutex);
-    for (auto it = m_Chunks.begin(); it != m_Chunks.end();)
+    std::vector<std::shared_ptr<Chunk>> opaqueChunks;
+    std::vector<std::shared_ptr<Chunk>> transparentChunks;
+
     {
-        auto &chunk = it->second;
-        int dx = chunk->GetPosition().x - playerChunk.x;
-        int dz = chunk->GetPosition().y - playerChunk.y;
-        int dist2 = dx * dx + dz * dz;
+        std::scoped_lock lock(m_ChunkMutex);
 
-        Chunk::State state = chunk->GetState();
+        for (auto it = m_Chunks.begin(); it != m_Chunks.end();)
+        {
+            auto &chunk = it->second;
+            int dx = chunk->GetPosition().x - playerChunk.x;
+            int dz = chunk->GetPosition().y - playerChunk.y;
+            int dist2 = dx * dx + dz * dz;
 
-        // Upload mesh to GPU if mesh is ready but not yet uploaded
-        if (state == Chunk::State::MeshReady)
-        {
-            chunk->UploadMeshToGPU();
-            chunk->SetState(Chunk::State::Done); // mark fully ready
-        }
+            Chunk::State state = chunk->GetState();
 
-        // Draw if fully ready and within render distance
-        if (state == Chunk::State::Done && dist2 <= renderDistance * renderDistance)
-        {
-            // LOG_INFO("Drawing chunk ({}, {})", chunk->m_Position.x, chunk->m_Position.y);
-            chunk->Draw(shader);
-        }
+            // Upload mesh if ready
+            if (state == Chunk::State::MeshReady)
+            {
+                chunk->UploadMeshToGPU();
+                chunk->SetState(Chunk::State::Done);
+            }
 
-        // Unload far-away chunks
-        if (chunk->m_ShouldUnload)
-        {
-            chunk->DeleteGPUData();
-            m_RequestedChunks.erase(it->first);
-            it = m_Chunks.erase(it);
-        }
-        else
-        {
-            ++it;
+            // Collect chunks in range
+            if (state == Chunk::State::Done && dist2 <= renderDistance * renderDistance)
+            {
+                opaqueChunks.push_back(chunk); // opaque and transparent will be separated in Draw()
+            }
+
+            // Unload far-away chunks
+            if (chunk->m_ShouldUnload)
+            {
+                chunk->DeleteGPUData();
+                m_RequestedChunks.erase(it->first);
+                it = m_Chunks.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
         }
     }
 
-    // LOG_INFO("Chunks: {}", m_Chunks.size());
+    // Separate opaque and transparent
+    for (auto &chunk : opaqueChunks)
+    {
+        if (!chunk->m_Mesh.Transparent.Indices.empty())
+            transparentChunks.push_back(chunk);
+    }
+
+    // Draw opaque first
+    for (auto &chunk : opaqueChunks)
+        chunk->DrawOpaque(shader);
+
+    // Sort transparent chunks back-to-front
+    std::sort(transparentChunks.begin(), transparentChunks.end(),
+              [&](const std::shared_ptr<Chunk> &a, const std::shared_ptr<Chunk> &b)
+              {
+                  float da = glm::length(m_PlayerPosition - Vector3(a->GetPosition().x * CHUNK_WIDTH, 0, a->GetPosition().y * CHUNK_WIDTH));
+                  float db = glm::length(m_PlayerPosition - Vector3(b->GetPosition().x * CHUNK_WIDTH, 0, b->GetPosition().y * CHUNK_WIDTH));
+                  return da > db; // farthest first
+              });
+
+    // Draw transparent
+    for (auto &chunk : transparentChunks)
+        chunk->DrawTransparent(shader);
 }
 
 std::shared_ptr<Chunk> ChunkManager::GetChunk(int x, int z)
@@ -463,7 +490,7 @@ int ChunkManager::GetHeightAt(int worldX, int worldZ, const BlockData &data, int
 
 MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int chunkZ)
 {
-    MeshData data;
+    MeshData data; // contains .Opaque and .Transparent sections
 
     Vector3f p000(0, 0, 0), p001(0, 0, 1), p010(0, 1, 0), p011(0, 1, 1);
     Vector3f p100(1, 0, 0), p101(1, 0, 1), p110(1, 1, 0), p111(1, 1, 1);
@@ -479,8 +506,8 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                 if (state.IsAir())
                     continue;
 
+                bool isTransparent = state.IsTransparent();
                 int blockId = state.GetId();
-
                 Vector3 blockPos(x, y, z);
 
                 struct Face
@@ -488,6 +515,7 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                     Vector3f v0, v1, v2, v3;
                     Vector3i normal;
                 };
+
                 Face faces[6] = {
                     {blockPos + p100, blockPos + p101, blockPos + p111, blockPos + p110, Vector3i(1, 0, 0)},
                     {blockPos + p001, blockPos + p000, blockPos + p010, blockPos + p011, Vector3i(-1, 0, 0)},
@@ -503,61 +531,71 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                     int ny = y + face.normal.y;
                     int nz = z + face.normal.z;
 
-                    const BlockState &adjacentBlock = GetBlock(nx, ny, nz, chunkX, chunkZ, blockData);
-                    // TODO: May have to change
-                    bool skipFace = false;
+                    const BlockState &adj = GetBlock(nx, ny, nz, chunkX, chunkZ, blockData);
 
-                    // Treat transparent blocks (glass, leaves) the same way
-                    if (state.IsTransparent())
+                    bool skip = false;
+
+                    if (isTransparent)
                     {
-                        // Skip only if neighbor is the same type (leaf next to leaf, glass next to glass)
-                        skipFace = (adjacentBlock.GetId() == state.GetId());
+                        // Transparent blocks only hide faces against the same block ID (glass next to glass)
+                        skip = (adj.GetId() == blockId);
                     }
                     else
                     {
-                        // Opaque blocks: skip face if neighbor is solid and opaque
-                        skipFace = !adjacentBlock.IsAir() && !adjacentBlock.IsTransparent();
+                        // Opaque: hide faces against non-air and non-transparent blocks
+                        skip = (!adj.IsAir() && !adj.IsTransparent());
                     }
 
-                    if (skipFace)
+                    if (skip)
                         continue;
 
-                    auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
-                    unsigned int baseIndex = data.Vertices.size();
+                    auto &destMesh = isTransparent ? data.Transparent : data.Opaque;
+                    auto &verts = destMesh.Vertices;
+                    auto &inds = destMesh.Indices;
 
-                    auto pushVertex = [&](Vector3f pos, Vector3i normal, Vector2f uv, float aoValue)
+                    unsigned int baseIndex = verts.size();
+
+                    auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
+
+                    auto push = [&](Vector3f pos, Vector3i normal, Vector2f uv, float aoVal)
                     {
                         Ref<TextureArray2D> texture = g_BlockRegistry.GetTexture();
                         if (!texture)
                             return;
 
-                        BlockVertex vertex;
-                        vertex.Position = pos;
-                        vertex.Normal = normal;
-                        vertex.UV = uv;
-                        vertex.TextureSize = Vector2i(texture->GetWidth((blockId) * 6), texture->GetHeight((blockId) * 6));
-                        vertex.Layer = (blockId) * 6;
-                        vertex.AO = aoValue;
+                        BlockVertex v;
+                        v.Position = pos;
+                        v.Normal = normal;
+                        v.UV = uv;
+                        v.TextureSize = Vector2i(texture->GetWidth(blockId * 6),
+                                                 texture->GetHeight(blockId * 6));
+                        v.Layer = blockId * 6;
+                        v.AO = aoVal;
 
-                        data.Vertices.push_back(vertex);
+                        verts.push_back(v);
                     };
 
-                    pushVertex(face.v0, face.normal, uv0, ao[0]);
-                    pushVertex(face.v1, face.normal, uv1, ao[1]);
-                    pushVertex(face.v2, face.normal, uv2, ao[2]);
-                    pushVertex(face.v3, face.normal, uv3, ao[3]);
+                    // Push vertices
+                    push(face.v0, face.normal, uv0, ao[0]);
+                    push(face.v1, face.normal, uv1, ao[1]);
+                    push(face.v2, face.normal, uv2, ao[2]);
+                    push(face.v3, face.normal, uv3, ao[3]);
 
                     float diag1 = ao[0] + ao[2];
                     float diag2 = ao[1] + ao[3];
 
                     if (diag1 > diag2)
-                        data.Indices.insert(data.Indices.end(),
-                                            {baseIndex, baseIndex + 1, baseIndex + 2,
-                                             baseIndex, baseIndex + 2, baseIndex + 3});
+                    {
+                        inds.insert(inds.end(),
+                                    {baseIndex, baseIndex + 1, baseIndex + 2,
+                                     baseIndex, baseIndex + 2, baseIndex + 3});
+                    }
                     else
-                        data.Indices.insert(data.Indices.end(),
-                                            {baseIndex + 1, baseIndex + 2, baseIndex + 3,
-                                             baseIndex + 1, baseIndex + 3, baseIndex});
+                    {
+                        inds.insert(inds.end(),
+                                    {baseIndex + 1, baseIndex + 2, baseIndex + 3,
+                                     baseIndex + 1, baseIndex + 3, baseIndex});
+                    }
                 }
             }
         }

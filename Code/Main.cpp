@@ -46,7 +46,6 @@ int main()
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_TRUE);
 
     Input::SetCursorMode(CursorMode::Locked);
 

@@ -14,10 +14,16 @@
 #define CHUNK_HEIGHT 256
 #define CHUNK_BASE_HEIGHT 64
 
-struct MeshData
+struct MeshSection
 {
     std::vector<BlockVertex> Vertices;
     std::vector<unsigned int> Indices;
+};
+
+struct MeshData
+{
+    MeshSection Opaque;
+    MeshSection Transparent;
 };
 
 struct BlockData
@@ -78,7 +84,10 @@ public:
 
     void UploadMeshToGPU();
     void DeleteGPUData();
+
     void Draw(const Shader &shader);
+    void DrawOpaque(const Shader &shader);
+    void DrawTransparent(const Shader &shader);
 
     void SetBlockData(const BlockData &data);
     void SetMeshData(MeshData &data);
@@ -111,7 +120,8 @@ private:
     mutable std::mutex m_Mutex;
     std::mutex m_MeshMutex;
 
-    unsigned int m_VAO = 0, m_VBO = 0, m_EBO = 0;
+    unsigned int m_OpaqueVAO = 0, m_OpaqueVBO = 0, m_OpaqueEBO = 0;
+    unsigned int m_TransVAO = 0, m_TransVBO = 0, m_TransEBO = 0;
 
     Vector2i m_Position;
 
