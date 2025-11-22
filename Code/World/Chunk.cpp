@@ -1,5 +1,6 @@
 
 #include "World/Chunk.h"
+#include "World/ChunkManager.h"
 #include "Graphics/Texture.h"
 #include "Graphics/Vertex.h"
 #include "Math/Matrix.h"
@@ -54,8 +55,8 @@ void Chunk::UploadMeshToGPU()
     glVertexAttribIPointer(3, 2, GL_INT, stride, (void *)(offsetof(BlockVertex, TextureSize)));
     glEnableVertexAttribArray(3);
 
-    glEnableVertexAttribArray(4);
     glVertexAttribIPointer(4, 1, GL_INT, stride, (void *)(offsetof(BlockVertex, Layer)));
+    glEnableVertexAttribArray(4);
 
     glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, stride, (void *)(offsetof(BlockVertex, AO)));
     glEnableVertexAttribArray(5);
@@ -127,4 +128,17 @@ void Chunk::SetMeshData(MeshData &data)
     m_Mesh.Vertices = data.Vertices;
     m_Mesh.Indices = data.Indices;
     SetState(State::MeshReady);
+}
+
+void Chunk::MarkMeshDirty()
+{
+    // Set the dirty flag
+    m_NeedsRebuild.store(true, std::memory_order_release);
+
+    // Optionally, if chunk is already meshed, mark it as ready to regenerate
+    State currentState = GetState();
+    if (currentState == State::MeshReady || currentState == State::Done)
+    {
+        SetState(State::BlocksReady);
+    }
 }

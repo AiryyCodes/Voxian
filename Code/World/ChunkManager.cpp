@@ -9,6 +9,7 @@
 #include "Queue.h"
 #include "World/Block.h"
 #include "World/Chunk.h"
+#include "World/Structure.h"
 
 #include <algorithm>
 #include <memory>
@@ -48,6 +49,9 @@ void ChunkManager::RequestChunk(int x, int z)
         if (auto chunk = weakChunk.lock())
         {
             BlockData blockData = GenerateBlocks(chunk->m_Position.x, chunk->m_Position.y);
+
+            Vector2i chunkPos = chunk->GetPosition();
+            ApplyStructures(chunkPos.x, chunkPos.y, blockData);
 
             // Push block result to main thread queue
             m_BlockQueue.push({
@@ -282,6 +286,8 @@ const BlockState &ChunkManager::GetBlock(
 
 BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
 {
+    GenerateTreesForChunk(chunkX, chunkZ);
+
     BlockData data;
 
     const int W = CHUNK_WIDTH;
@@ -328,22 +334,131 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
                 uint16_t id = BLOCK_AIR;
 
                 if (wy <= 0)
+                {
                     id = BLOCK_BEDROCK;
+                }
                 else if (wy > terrainHeight)
+                {
                     id = BLOCK_AIR;
+                }
                 else if (wy == terrainHeight)
-                    id = BLOCK_GRASS;
-                else if (wy >= stoneHeight)
-                    id = BLOCK_DIRT;
+                {
+                    id = BLOCK_GRASS; // top block is always grass
+                }
+                else if (wy >= terrainHeight - dirtThickness)
+                {
+                    id = BLOCK_DIRT; // dirt layer below grass
+                }
                 else
-                    id = BLOCK_STONE;
+                {
+                    id = BLOCK_STONE; // everything below dirt is stone
+                }
 
                 data.SetID(px, py, pz, id);
             }
         }
     }
 
+    /*
+    const int treeAttempts = 20; // number of tries per chunk
+    for (int i = 0; i < treeAttempts; ++i)
+    {
+        float nx = float(chunkX * 1000 + i * 13); // arbitrary offset for X
+        float nz = float(chunkZ * 1000 + i * 37); // different arbitrary offset for Z
+        int localX = int((m_Noise.GetNoise(nx, nz) + 1.0f) * 0.5f * W);
+        localX = std::clamp(localX, 0, W - 1);
+
+        nx = float(chunkX * 2000 + i * 57); // different offsets for Z
+        nz = float(chunkZ * 2000 + i * 91);
+        int localZ = int((m_Noise.GetNoise(nx, nz) + 1.0f) * 0.5f * W);
+        localZ = std::clamp(localZ, 0, W - 1);
+
+        int wx = chunkX * W + localX;
+        int wz = chunkZ * W + localZ;
+        int terrainHeight = GetHeightAt(wx, wz, data, chunkX, chunkZ);
+
+        // LOG_INFO("Trying tree at {} {}, terrain height {}", wx, wz, terrainHeight);
+        if (!CanPlaceTreeAt(wx, terrainHeight, wz, data, chunkX, chunkZ))
+            continue;
+
+        Tree tree;
+        tree.BasePos = Vector3i(wx, terrainHeight + 1, wz);
+        tree.Blocks = GenerateTreeBlocks(tree.BasePos);
+
+        // Place tree blocks **immediately**
+        for (auto &tb : tree.Blocks)
+        {
+            int bx = tb.RelativePos.x + 1 + (tree.BasePos.x - chunkX * W);
+            int by = tb.RelativePos.y + 1 + tree.BasePos.y - 1;
+            int bz = tb.RelativePos.z + 1 + (tree.BasePos.z - chunkZ * W);
+
+            if (bx >= 0 && bx < PW && by >= 0 && by < PH && bz >= 0 && bz < PW)
+            {
+                data.SetID(bx, by, bz, tb.BlockId);
+            }
+        }
+
+    // Store tree in m_Trees safely
+    {
+        std::scoped_lock lock(m_TreesMutex);
+        m_Trees[{chunkX, chunkZ}].push_back(tree);
+
+        // LOG_INFO("Generated a tree!");
+    }
+}
+    */
     return data;
+}
+
+void ChunkManager::GenerateTreesForChunk(int cx, int cz)
+{
+    const int W = CHUNK_WIDTH;
+    Vector2i key{cx, cz};
+    auto &list = m_Trees[key]; // creates entry if missing
+
+    // Decide tree count based on noise
+    float noiseVal = m_Noise.GetNoise(float(cx * 10), float(cz * 10));
+    int treeCount = int((noiseVal + 1.0f) * 2.0f); // 0..4 trees per chunk
+
+    for (int i = 0; i < treeCount; ++i)
+    {
+        // Pick deterministic base coordinates in the chunk
+        float fx = m_Noise.GetNoise(float(cx * 100 + i), float(cz * 100 + i));
+        float fz = m_Noise.GetNoise(float(cx * 200 + i), float(cz * 200 + i));
+
+        int wx = cx * W + int((fx + 1.0f) * 0.5f * (W - 4)) + 2;
+        int wz = cz * W + int((fz + 1.0f) * 0.5f * (W - 4)) + 2;
+
+        // Determine terrain height using noise
+        int wy = int(CHUNK_BASE_HEIGHT + m_Noise.GetNoise(float(wx), float(wz)) * 20.0f);
+        if (wy < 1)
+            wy = 1;
+        if (wy >= CHUNK_HEIGHT - 1)
+            wy = CHUNK_HEIGHT - 2;
+
+        Tree tree;
+        tree.BasePos = Vector3i(wx, wy, wz);
+        tree.Blocks = GenerateTreeBlocks(tree.BasePos);
+
+        list.push_back(tree);
+    }
+}
+
+int ChunkManager::GetHeightAt(int worldX, int worldZ, const BlockData &data, int chunkX, int chunkZ)
+{
+    const int W = CHUNK_WIDTH;
+    const int PH = CHUNK_HEIGHT + 2;
+
+    int lx = (worldX - chunkX * W) + 1; // padded
+    int lz = (worldZ - chunkZ * W) + 1;
+
+    for (int py = PH - 1; py >= 0; --py)
+    {
+        if (data.GetID(lx, py, lz) != BLOCK_AIR)
+            return py - 1; // -1 because padding shifts blocks up
+    }
+
+    return 0;
 }
 
 MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int chunkZ)
@@ -388,8 +503,23 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                     int ny = y + face.normal.y;
                     int nz = z + face.normal.z;
 
+                    const BlockState &adjacentBlock = GetBlock(nx, ny, nz, chunkX, chunkZ, blockData);
                     // TODO: May have to change
-                    if (!GetBlock(nx, ny, nz, chunkX, chunkZ, blockData).IsAir())
+                    bool skipFace = false;
+
+                    // Treat transparent blocks (glass, leaves) the same way
+                    if (state.IsTransparent())
+                    {
+                        // Skip only if neighbor is the same type (leaf next to leaf, glass next to glass)
+                        skipFace = (adjacentBlock.GetId() == state.GetId());
+                    }
+                    else
+                    {
+                        // Opaque blocks: skip face if neighbor is solid and opaque
+                        skipFace = !adjacentBlock.IsAir() && !adjacentBlock.IsTransparent();
+                    }
+
+                    if (skipFace)
                         continue;
 
                     auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
@@ -405,8 +535,8 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                         vertex.Position = pos;
                         vertex.Normal = normal;
                         vertex.UV = uv;
-                        vertex.TextureSize = Vector2i(texture->GetWidth((blockId + 1) * 6), texture->GetHeight((blockId + 1) * 6));
-                        vertex.Layer = (blockId + 1) * 6;
+                        vertex.TextureSize = Vector2i(texture->GetWidth((blockId) * 6), texture->GetHeight((blockId) * 6));
+                        vertex.Layer = (blockId) * 6;
                         vertex.AO = aoValue;
 
                         data.Vertices.push_back(vertex);
@@ -533,4 +663,191 @@ std::array<Vector3i, 3> ChunkManager::GetAONeighbors(int vertexIndex, const Vect
     }
 
     return neighbors[vertexIndex];
+}
+
+void ChunkManager::PlaceTree(const Tree &tree, BlockData &data, const Vector2i &chunkPos)
+{
+    const int W = CHUNK_WIDTH;
+    const int H = CHUNK_HEIGHT;
+    const int PW = W + 2;
+    const int PH = H + 2;
+
+    // Iterate all tree blocks
+    for (const auto &tb : tree.Blocks)
+    {
+        // World coordinates of the tree block
+        int wx = tree.BasePos.x + tb.RelativePos.x;
+        int wy = tree.BasePos.y + tb.RelativePos.y;
+        int wz = tree.BasePos.z + tb.RelativePos.z;
+
+        // Determine if this block belongs to this chunk
+        int cx = (wx >= 0) ? wx / W : (wx - W + 1) / W;
+        int cz = (wz >= 0) ? wz / W : (wz - W + 1) / W;
+
+        if (cx != chunkPos.x || cz != chunkPos.y)
+            continue; // Not in this chunk
+
+        // Convert world coords → local padded coords
+        int lx = (wx - chunkPos.x * W) + 1;
+        int ly = wy + 1; // padded y
+        int lz = (wz - chunkPos.y * W) + 1;
+
+        if (lx < 0 || lx >= PW || ly < 0 || ly >= PH || lz < 0 || lz >= PW)
+            continue; // Outside padded range
+
+        data.SetID(lx, ly, lz, tb.BlockId);
+    }
+}
+
+void ChunkManager::UpdatePaddingNeighbors(int cx, int cz, int lx, int ly, int lz, uint16_t id)
+{
+    const int W = CHUNK_WIDTH;
+
+    // Left neighbor
+    if (lx == 1)
+        UpdateNeighborPadding(cx - 1, cz, W + 1, ly, lz, id);
+
+    // Right neighbor
+    if (lx == W)
+        UpdateNeighborPadding(cx + 1, cz, 0, ly, lz, id);
+
+    // North neighbor
+    if (lz == 1)
+        UpdateNeighborPadding(cx, cz - 1, lx, ly, W + 1, id);
+
+    // South neighbor
+    if (lz == W)
+        UpdateNeighborPadding(cx, cz + 1, lx, ly, 0, id);
+}
+
+void ChunkManager::UpdateNeighborPadding(int ncx, int ncz, int px, int py, int pz, uint16_t id)
+{
+    auto neighbor = GetChunk(ncx, ncz);
+    if (!neighbor)
+        return;
+
+    std::lock_guard lock(neighbor->m_Mutex);
+    neighbor->m_Blocks.SetID(px, py, pz, id);
+    neighbor->MarkMeshDirty();
+}
+
+bool ChunkManager::TreeIntersectsChunk(const Tree &tree, const Vector2i &chunkPos) const
+{
+    const int W = CHUNK_WIDTH;
+
+    // Compute the bounding box of the tree in world coordinates
+    int minX = tree.BasePos.x;
+    int maxX = tree.BasePos.x;
+    int minZ = tree.BasePos.z;
+    int maxZ = tree.BasePos.z;
+
+    for (const auto &tb : tree.Blocks)
+    {
+        int wx = tree.BasePos.x + tb.RelativePos.x;
+        int wz = tree.BasePos.z + tb.RelativePos.z;
+
+        if (wx < minX)
+            minX = wx;
+        if (wx > maxX)
+            maxX = wx;
+        if (wz < minZ)
+            minZ = wz;
+        if (wz > maxZ)
+            maxZ = wz;
+    }
+
+    // Chunk bounds in world coordinates
+    int chunkMinX = chunkPos.x * W;
+    int chunkMaxX = chunkMinX + W - 1;
+    int chunkMinZ = chunkPos.y * W;
+    int chunkMaxZ = chunkMinZ + W - 1;
+
+    // Check if the tree bounding box intersects the chunk
+    bool intersectsX = (maxX >= chunkMinX) && (minX <= chunkMaxX);
+    bool intersectsZ = (maxZ >= chunkMinZ) && (minZ <= chunkMaxZ);
+
+    return intersectsX && intersectsZ;
+}
+
+bool ChunkManager::CanPlaceTreeAt(int wx, int wy, int wz, const BlockData &chunkData, int chunkX, int chunkZ)
+{
+    const int W = CHUNK_WIDTH;
+
+    int localX = (wx - chunkX * W) + 1;
+    int localZ = (wz - chunkX * W) + 1;
+    int localY = wy + 1; // +1 because padded array is offset
+
+    // Check that the block below the base is grass
+    if (chunkData.GetID(localX, localY, localZ) != BLOCK_GRASS)
+    {
+        // LOG_INFO("Cannot place tree: not on grass at {}, {}, {}", wx, wy, wz);
+        return false;
+    }
+
+    // Check vertical space
+    const int treeHeight = 6;
+    for (int y = localY + 1; y < localY + 1 + treeHeight && y < BlockData::PH; ++y)
+    {
+        if (chunkData.GetID(localX, y, localZ) != BLOCK_AIR)
+            return false;
+    }
+
+    return true;
+}
+
+std::vector<TreeBlock> ChunkManager::GenerateTreeBlocks(const Vector3i &base)
+{
+    std::vector<TreeBlock> blocks;
+
+    const int trunkHeight = 5;
+    const int leafStart = trunkHeight - 1;
+    const int leafRadius = 2;
+    const int leafHeight = 3;
+
+    // Trunk
+    for (int y = 0; y < trunkHeight; ++y)
+    {
+        blocks.push_back({Vector3i(0, y, 0), BLOCK_WOOD_LOG});
+    }
+
+    // Leaves (simple cube)
+    for (int x = -leafRadius; x <= leafRadius; ++x)
+    {
+        for (int y = leafStart; y <= leafStart + leafHeight; ++y)
+        {
+            for (int z = -leafRadius; z <= leafRadius; ++z)
+            {
+                if (x == 0 && y < trunkHeight && z == 0)
+                    continue; // skip trunk space
+                blocks.push_back({Vector3i(x, y, z), BLOCK_LEAVES});
+            }
+        }
+    }
+
+    return blocks;
+}
+
+void ChunkManager::ApplyStructures(int cx, int cz, BlockData &data)
+{
+    const Vector2i currentChunk{cx, cz};
+
+    // Check this chunk and the 8 neighbors
+    for (int dx = -1; dx <= 1; dx++)
+        for (int dz = -1; dz <= 1; dz++)
+        {
+            Vector2i key{cx + dx, cz + dz};
+
+            // Any structures in that chunk?
+            auto it = m_Trees.find(key);
+            if (it == m_Trees.end())
+                continue;
+
+            for (const Tree &tree : it->second)
+            {
+                if (TreeIntersectsChunk(tree, currentChunk))
+                {
+                    PlaceTree(tree, data, currentChunk);
+                }
+            }
+        }
 }

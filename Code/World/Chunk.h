@@ -98,6 +98,8 @@ public:
     std::atomic<bool> m_NeedsRebuild{false};
     std::atomic<bool> m_ShouldUnload{false};
 
+    void MarkMeshDirty();
+
 private:
     friend class ChunkManager;
 

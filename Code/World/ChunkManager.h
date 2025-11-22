@@ -8,6 +8,7 @@
 #include "ThreadPool.h"
 #include "World/Block.h"
 #include "World/Chunk.h"
+#include "World/Structure.h"
 
 #include <memory>
 #include <mutex>
@@ -29,13 +30,23 @@ private:
     int GetBlockIndex(int x, int y, int z) const;
 
     BlockData GenerateBlocks(int chunkX, int chunkZ);
+    int GetHeightAt(int worldX, int worldZ, const BlockData &data, int chunkX, int chunkZ);
+
     MeshData GenerateMesh(const BlockData &blockData, int chunkX, int chunkZ);
 
     std::array<float, 4> GetVertexAOs(const BlockData &localData, const Vector3i &blockPos, const Vector3i &faceNormal, const Vector2i chunkPos);
     std::array<Vector3i, 3> GetAONeighbors(int vertexIndex, const Vector3i &face);
 
-    bool AreNeighborsReady(const Vector2i &chunkPos);
-    bool IsFarFromPlayer(const Vector2i &chunkPos, const Vector2i &playerChunk);
+    void UpdatePaddingNeighbors(int cx, int cz, int lx, int ly, int lz, uint16_t id);
+    void UpdateNeighborPadding(int ncx, int ncz, int px, int py, int pz, uint16_t id);
+
+    std::vector<TreeBlock> GenerateTreeBlocks(const Vector3i &base);
+    bool CanPlaceTreeAt(int worldX, int terrainY, int worldZ, const BlockData &data, int chunkX, int chunkZ);
+    bool TreeIntersectsChunk(const Tree &tree, const Vector2i &chunkPos) const;
+    void PlaceTree(const Tree &tree, BlockData &data, const Vector2i &chunkPos);
+
+    void GenerateTreesForChunk(int cx, int cz);
+    void ApplyStructures(int cx, int cz, BlockData &data);
 
 private:
     const int m_MaxRebuildsPerFrame = 2;
@@ -54,4 +65,7 @@ private:
     ThreadPool m_ThreadPool;
 
     FastNoiseLite m_Noise;
+
+    std::mutex m_TreesMutex;
+    std::unordered_map<Vector2i, std::vector<Tree>> m_Trees;
 };

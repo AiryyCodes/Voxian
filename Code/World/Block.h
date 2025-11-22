@@ -127,10 +127,11 @@ public:
     uint16_t Register(BlockState state)
     {
         uint16_t id = m_States.size();
-        m_States.push_back(state);
-        m_NameToId[state.GetName()] = id;
 
         state.m_Id = id;
+
+        m_States.push_back(state);
+        m_NameToId[state.GetName()] = id;
 
         return id;
     }
@@ -168,3 +169,11 @@ inline uint16_t BLOCK_STONE = g_BlockRegistry.Register(
 
 inline uint16_t BLOCK_BEDROCK = g_BlockRegistry.Register(
     BlockState("bedrock"));
+
+inline uint16_t BLOCK_WOOD_LOG = g_BlockRegistry.Register(
+    BlockState("wood_log"));
+
+inline uint16_t BLOCK_LEAVES = g_BlockRegistry.Register(
+    BlockState("leaves")
+        .SetSolid(false)
+        .SetTransparent(true));
