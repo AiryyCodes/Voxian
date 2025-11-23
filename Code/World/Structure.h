@@ -4,18 +4,14 @@
 
 struct TreeBlock
 {
-    Vector3i RelativePos; // relative to tree base
+    // Relative to tree base
+    Vector3i RelativePos;
     uint16_t BlockId;
 };
 
 struct Tree
 {
-    Vector3i BasePos; // world position
+    // World position
+    Vector3i BasePos;
     std::vector<TreeBlock> Blocks;
-};
-
-struct BlockChange
-{
-    int X, Y, Z; // world coordinates
-    uint16_t Id;
 };

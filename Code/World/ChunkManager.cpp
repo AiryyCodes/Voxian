@@ -386,54 +386,6 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
         }
     }
 
-    /*
-    const int treeAttempts = 20; // number of tries per chunk
-    for (int i = 0; i < treeAttempts; ++i)
-    {
-        float nx = float(chunkX * 1000 + i * 13); // arbitrary offset for X
-        float nz = float(chunkZ * 1000 + i * 37); // different arbitrary offset for Z
-        int localX = int((m_Noise.GetNoise(nx, nz) + 1.0f) * 0.5f * W);
-        localX = std::clamp(localX, 0, W - 1);
-
-        nx = float(chunkX * 2000 + i * 57); // different offsets for Z
-        nz = float(chunkZ * 2000 + i * 91);
-        int localZ = int((m_Noise.GetNoise(nx, nz) + 1.0f) * 0.5f * W);
-        localZ = std::clamp(localZ, 0, W - 1);
-
-        int wx = chunkX * W + localX;
-        int wz = chunkZ * W + localZ;
-        int terrainHeight = GetHeightAt(wx, wz, data, chunkX, chunkZ);
-
-        // LOG_INFO("Trying tree at {} {}, terrain height {}", wx, wz, terrainHeight);
-        if (!CanPlaceTreeAt(wx, terrainHeight, wz, data, chunkX, chunkZ))
-            continue;
-
-        Tree tree;
-        tree.BasePos = Vector3i(wx, terrainHeight + 1, wz);
-        tree.Blocks = GenerateTreeBlocks(tree.BasePos);
-
-        // Place tree blocks **immediately**
-        for (auto &tb : tree.Blocks)
-        {
-            int bx = tb.RelativePos.x + 1 + (tree.BasePos.x - chunkX * W);
-            int by = tb.RelativePos.y + 1 + tree.BasePos.y - 1;
-            int bz = tb.RelativePos.z + 1 + (tree.BasePos.z - chunkZ * W);
-
-            if (bx >= 0 && bx < PW && by >= 0 && by < PH && bz >= 0 && bz < PW)
-            {
-                data.SetID(bx, by, bz, tb.BlockId);
-            }
-        }
-
-    // Store tree in m_Trees safely
-    {
-        std::scoped_lock lock(m_TreesMutex);
-        m_Trees[{chunkX, chunkZ}].push_back(tree);
-
-        // LOG_INFO("Generated a tree!");
-    }
-}
-    */
     return data;
 }
 
@@ -471,26 +423,9 @@ void ChunkManager::GenerateTreesForChunk(int cx, int cz)
     }
 }
 
-int ChunkManager::GetHeightAt(int worldX, int worldZ, const BlockData &data, int chunkX, int chunkZ)
-{
-    const int W = CHUNK_WIDTH;
-    const int PH = CHUNK_HEIGHT + 2;
-
-    int lx = (worldX - chunkX * W) + 1; // padded
-    int lz = (worldZ - chunkZ * W) + 1;
-
-    for (int py = PH - 1; py >= 0; --py)
-    {
-        if (data.GetID(lx, py, lz) != BLOCK_AIR)
-            return py - 1; // -1 because padding shifts blocks up
-    }
-
-    return 0;
-}
-
 MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int chunkZ)
 {
-    MeshData data; // contains .Opaque and .Transparent sections
+    MeshData data;
 
     Vector3f p000(0, 0, 0), p001(0, 0, 1), p010(0, 1, 0), p011(0, 1, 1);
     Vector3f p100(1, 0, 0), p101(1, 0, 1), p110(1, 1, 0), p111(1, 1, 1);
@@ -517,12 +452,12 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                 };
 
                 Face faces[6] = {
-                    {blockPos + p100, blockPos + p101, blockPos + p111, blockPos + p110, Vector3i(1, 0, 0)},
-                    {blockPos + p001, blockPos + p000, blockPos + p010, blockPos + p011, Vector3i(-1, 0, 0)},
-                    {blockPos + p010, blockPos + p110, blockPos + p111, blockPos + p011, Vector3i(0, 1, 0)},
-                    {blockPos + p000, blockPos + p100, blockPos + p101, blockPos + p001, Vector3i(0, -1, 0)},
-                    {blockPos + p101, blockPos + p001, blockPos + p011, blockPos + p111, Vector3i(0, 0, 1)},
-                    {blockPos + p000, blockPos + p100, blockPos + p110, blockPos + p010, Vector3i(0, 0, -1)},
+                    {blockPos + p100, blockPos + p101, blockPos + p111, blockPos + p110, Vector3i(1, 0, 0)},  // +X
+                    {blockPos + p001, blockPos + p000, blockPos + p010, blockPos + p011, Vector3i(-1, 0, 0)}, // -X
+                    {blockPos + p010, blockPos + p110, blockPos + p111, blockPos + p011, Vector3i(0, 1, 0)},  // +Y
+                    {blockPos + p001, blockPos + p101, blockPos + p100, blockPos + p000, Vector3i(0, -1, 0)}, // -Y
+                    {blockPos + p101, blockPos + p001, blockPos + p011, blockPos + p111, Vector3i(0, 0, 1)},  // +Z
+                    {blockPos + p000, blockPos + p100, blockPos + p110, blockPos + p010, Vector3i(0, 0, -1)}, // -Z
                 };
 
                 for (auto &face : faces)
@@ -535,15 +470,15 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
 
                     bool skip = false;
 
-                    if (isTransparent)
+                    if (!isTransparent)
                     {
-                        // Transparent blocks only hide faces against the same block ID (glass next to glass)
-                        skip = (adj.GetId() == blockId);
-                    }
-                    else
-                    {
-                        // Opaque: hide faces against non-air and non-transparent blocks
+                        // opaque: skip if neighbor is opaque
                         skip = (!adj.IsAir() && !adj.IsTransparent());
+                    }
+
+                    if (isTransparent && face.normal.y != 0)
+                    {
+                        skip = false; // always draw top/bottom
                     }
 
                     if (skip)
@@ -570,6 +505,8 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                         v.TextureSize = Vector2i(texture->GetWidth(blockId * 6),
                                                  texture->GetHeight(blockId * 6));
                         v.Layer = blockId * 6;
+
+                        aoVal = isTransparent ? 1.0f : aoVal;
                         v.AO = aoVal;
 
                         verts.push_back(v);
@@ -638,8 +575,8 @@ std::array<float, 4> ChunkManager::GetVertexAOs(const BlockData &localData, cons
         ao[i] = getOcclusion(s1, s2, c);
     }
 
-    // if (faceNormal == Vector3i(0, -1, 0))
-    // std::swap(ao[1], ao[3]);
+    if (faceNormal == Vector3i(0, -1, 0))
+        std::swap(ao[0], ao[2]);
 
     return ao;
 }
@@ -737,38 +674,6 @@ void ChunkManager::PlaceTree(const Tree &tree, BlockData &data, const Vector2i &
     }
 }
 
-void ChunkManager::UpdatePaddingNeighbors(int cx, int cz, int lx, int ly, int lz, uint16_t id)
-{
-    const int W = CHUNK_WIDTH;
-
-    // Left neighbor
-    if (lx == 1)
-        UpdateNeighborPadding(cx - 1, cz, W + 1, ly, lz, id);
-
-    // Right neighbor
-    if (lx == W)
-        UpdateNeighborPadding(cx + 1, cz, 0, ly, lz, id);
-
-    // North neighbor
-    if (lz == 1)
-        UpdateNeighborPadding(cx, cz - 1, lx, ly, W + 1, id);
-
-    // South neighbor
-    if (lz == W)
-        UpdateNeighborPadding(cx, cz + 1, lx, ly, 0, id);
-}
-
-void ChunkManager::UpdateNeighborPadding(int ncx, int ncz, int px, int py, int pz, uint16_t id)
-{
-    auto neighbor = GetChunk(ncx, ncz);
-    if (!neighbor)
-        return;
-
-    std::lock_guard lock(neighbor->m_Mutex);
-    neighbor->m_Blocks.SetID(px, py, pz, id);
-    neighbor->MarkMeshDirty();
-}
-
 bool ChunkManager::TreeIntersectsChunk(const Tree &tree, const Vector2i &chunkPos) const
 {
     const int W = CHUNK_WIDTH;
@@ -807,32 +712,6 @@ bool ChunkManager::TreeIntersectsChunk(const Tree &tree, const Vector2i &chunkPo
     return intersectsX && intersectsZ;
 }
 
-bool ChunkManager::CanPlaceTreeAt(int wx, int wy, int wz, const BlockData &chunkData, int chunkX, int chunkZ)
-{
-    const int W = CHUNK_WIDTH;
-
-    int localX = (wx - chunkX * W) + 1;
-    int localZ = (wz - chunkX * W) + 1;
-    int localY = wy + 1; // +1 because padded array is offset
-
-    // Check that the block below the base is grass
-    if (chunkData.GetID(localX, localY, localZ) != BLOCK_GRASS)
-    {
-        // LOG_INFO("Cannot place tree: not on grass at {}, {}, {}", wx, wy, wz);
-        return false;
-    }
-
-    // Check vertical space
-    const int treeHeight = 6;
-    for (int y = localY + 1; y < localY + 1 + treeHeight && y < BlockData::PH; ++y)
-    {
-        if (chunkData.GetID(localX, y, localZ) != BLOCK_AIR)
-            return false;
-    }
-
-    return true;
-}
-
 std::vector<TreeBlock> ChunkManager::GenerateTreeBlocks(const Vector3i &base)
 {
     std::vector<TreeBlock> blocks;
@@ -840,7 +719,7 @@ std::vector<TreeBlock> ChunkManager::GenerateTreeBlocks(const Vector3i &base)
     const int trunkHeight = 5;
     const int leafStart = trunkHeight - 1;
     const int leafRadius = 2;
-    const int leafHeight = 3;
+    const int leafHeight = 4;
 
     // Trunk
     for (int y = 0; y < trunkHeight; ++y)
@@ -875,7 +754,6 @@ void ChunkManager::ApplyStructures(int cx, int cz, BlockData &data)
         {
             Vector2i key{cx + dx, cz + dz};
 
-            // Any structures in that chunk?
             auto it = m_Trees.find(key);
             if (it == m_Trees.end())
                 continue;

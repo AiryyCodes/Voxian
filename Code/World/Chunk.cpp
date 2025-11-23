@@ -159,6 +159,8 @@ void Chunk::DrawOpaque(const Shader &shader)
 
     if (m_OpaqueVAO != 0 && m_Mesh.Opaque.Indices.size() > 0)
     {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
 
@@ -176,14 +178,13 @@ void Chunk::DrawTransparent(const Shader &shader)
 
     if (m_TransVAO != 0 && m_Mesh.Transparent.Indices.size() > 0)
     {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_CULL_FACE);
-        glDepthMask(GL_FALSE);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
 
         glBindVertexArray(m_TransVAO);
         glDrawElements(GL_TRIANGLES, m_Mesh.Transparent.Indices.size(), GL_UNSIGNED_INT, 0);
-        glDepthMask(GL_TRUE);
     }
 }
 

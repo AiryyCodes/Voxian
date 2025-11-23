@@ -16,6 +16,7 @@ in float v_AO;
 out vec4 v_FragColor;
 
 uniform Block u_Block;
+uniform float u_AlphaCutoff = 0.5;
 
 void main()
 {
@@ -23,6 +24,9 @@ void main()
     vec4 texColor = texture(u_Block.Diffuse, vec3(scaledUV, v_Layer));
 
     vec3 color = texColor.rgb * v_AO;
+
+    if (texColor.a < u_AlphaCutoff)
+        discard;   // Alpha test
 
     v_FragColor = vec4(color, texColor.a);
     // FragColor = vec4(0.9, 0.5, 0.2, 1.0);

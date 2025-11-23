@@ -30,18 +30,12 @@ private:
     int GetBlockIndex(int x, int y, int z) const;
 
     BlockData GenerateBlocks(int chunkX, int chunkZ);
-    int GetHeightAt(int worldX, int worldZ, const BlockData &data, int chunkX, int chunkZ);
-
     MeshData GenerateMesh(const BlockData &blockData, int chunkX, int chunkZ);
 
     std::array<float, 4> GetVertexAOs(const BlockData &localData, const Vector3i &blockPos, const Vector3i &faceNormal, const Vector2i chunkPos);
     std::array<Vector3i, 3> GetAONeighbors(int vertexIndex, const Vector3i &face);
 
-    void UpdatePaddingNeighbors(int cx, int cz, int lx, int ly, int lz, uint16_t id);
-    void UpdateNeighborPadding(int ncx, int ncz, int px, int py, int pz, uint16_t id);
-
     std::vector<TreeBlock> GenerateTreeBlocks(const Vector3i &base);
-    bool CanPlaceTreeAt(int worldX, int terrainY, int worldZ, const BlockData &data, int chunkX, int chunkZ);
     bool TreeIntersectsChunk(const Tree &tree, const Vector2i &chunkPos) const;
     void PlaceTree(const Tree &tree, BlockData &data, const Vector2i &chunkPos);
 

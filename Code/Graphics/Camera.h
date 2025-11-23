@@ -34,7 +34,7 @@ private:
     Vector3f m_Right;
     Vector3f m_Forward;
 
-    float m_Speed = 50.0f;
+    float m_Speed = 25.0f;
     float m_Sensitivity = 0.2f;
 
     float m_Fov = 70.0f;
