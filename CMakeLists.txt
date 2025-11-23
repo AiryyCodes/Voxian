@@ -3,10 +3,14 @@ project(Voxian CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
 file(GLOB_RECURSE GAME_SOURCES
     "Code/**.cpp"
 )
-
 
 add_custom_target(link_target ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_SOURCE_DIR}/Assets ${CMAKE_BINARY_DIR}/Assets)

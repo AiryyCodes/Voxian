@@ -16,7 +16,16 @@ TextureArray2D::TextureArray2D(std::vector<std::string> paths, int maxWidth, int
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA16, maxWidth, maxHeight, m_NumLayers);
+    // glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA16, maxWidth, maxHeight, m_NumLayers);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY,
+                 0,
+                 GL_RGBA8,
+                 maxWidth, maxHeight,
+                 m_NumLayers,
+                 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_BYTE,
+                 NULL);
 
     for (int i = 0; i < paths.size(); i++)
     {
@@ -49,7 +58,7 @@ TextureArray2D::TextureArray2D(std::vector<std::string> paths, int maxWidth, int
 
 void TextureArray2D::Bind(const Shader &shader)
 {
-    shader.SetUniform("u_TexArray", 0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, m_Id);
 }
 

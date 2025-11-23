@@ -13,6 +13,11 @@ Window::Window(int width, int height, const std::string &title)
     m_Height = height;
     m_Title = title;
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+
     m_Window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!m_Window)
     {
@@ -31,6 +36,7 @@ Window::Window(int width, int height, const std::string &title)
                                 window->m_Width = width;
                                 window->m_Height = height; });
 
+    glfwGetFramebufferSize(m_Window, &m_FrameBufferWidth, &m_FrameBufferHeight);
     glfwSetFramebufferSizeCallback(m_Window, [](GLFWwindow *glfwWindow, int width, int height)
                                    {
                                     Window* window = (Window*)glfwGetWindowUserPointer(glfwWindow);

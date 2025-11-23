@@ -2,7 +2,7 @@
 #include "Graphics/Window.h"
 #include "Math/Matrix.h"
 #include "Math/Vector.h"
-#include "Time.h"
+#include "MyTime.h"
 
 #include <GLFW/glfw3.h>
 #include <glm/common.hpp>
