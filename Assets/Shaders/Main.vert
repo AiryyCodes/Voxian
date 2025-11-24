@@ -14,10 +14,12 @@ out vec2 v_UV;
 flat out ivec2 v_TexSize;
 flat out int v_Layer;
 out float v_AO;
+out vec4 v_FragPosLightSpace; // for shadow map
 
 uniform mat4 u_Model;
 uniform mat4 u_View;
 uniform mat4 u_Projection;
+uniform mat4 u_LightSpaceMatrix;
 
 void main()
 {
@@ -27,6 +29,8 @@ void main()
     v_TexSize = a_TexSize;
     v_Layer = a_Layer;
     v_AO = a_AO;
+
+    v_FragPosLightSpace = u_LightSpaceMatrix * vec4(v_FragPos, 1.0);
 
     gl_Position = u_Projection * u_View * vec4(v_FragPos, 1.0);
 }

@@ -3,7 +3,6 @@
 #include "FastNoiseLite.h"
 #include "Graphics/Shader.h"
 #include "Math/Vector.h"
-#include "Memory.h"
 #include "Queue.h"
 #include "ThreadPool.h"
 #include "World/Block.h"
@@ -18,6 +17,8 @@
 class ChunkManager
 {
 public:
+    ChunkManager();
+
     void RequestChunk(int x, int z);
     std::shared_ptr<Chunk> GetChunk(int x, int z);
 
@@ -57,6 +58,10 @@ private:
     std::unordered_map<Vector2i, std::shared_ptr<Chunk>> m_Chunks;
     std::unordered_set<Vector2i> m_RequestedChunks;
     std::recursive_mutex m_ChunkMutex;
+
+    Shader shadowShader;
+    unsigned int depthMapFBO = 0;
+    unsigned int depthMap = 0;
 
     ThreadPool m_ThreadPool;
 

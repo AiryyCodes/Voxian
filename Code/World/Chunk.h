@@ -77,8 +77,7 @@ public:
         Done         // Fully ready (mesh uploaded)
     };
 
-    Chunk(ChunkManager *chunkManager, int x = 0, int z = 0)
-        : m_ChunkManager(chunkManager), m_Position(x, z), m_State(State::Empty) {}
+    Chunk(ChunkManager *chunkManager, int x, int z);
 
     ~Chunk();
 

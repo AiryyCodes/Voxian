@@ -13,6 +13,11 @@
 #include <FastNoiseLite.h>
 #include <mutex>
 
+Chunk::Chunk(ChunkManager *chunkManager, int x, int z)
+    : m_ChunkManager(chunkManager), m_Position(x, z), m_State(State::Empty)
+{
+}
+
 Chunk::~Chunk()
 {
     if (m_State == State::Done)

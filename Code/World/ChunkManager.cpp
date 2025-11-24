@@ -1,8 +1,13 @@
+#include <algorithm>
+#include <memory>
+#include <stdexcept>
+#include <glad/gl.h>
 
 #include "World/ChunkManager.h"
 #include "FastNoiseLite.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
+#include "Graphics/Window.h"
 #include "Logger.h"
 #include "Math/Vector.h"
 #include "Memory.h"
@@ -11,9 +16,38 @@
 #include "World/Chunk.h"
 #include "World/Structure.h"
 
-#include <algorithm>
-#include <memory>
-#include <stdexcept>
+const unsigned int SHADOW_WIDTH = 4096, SHADOW_HEIGHT = 4096;
+
+ChunkManager::ChunkManager()
+{
+    shadowShader.Init("Assets/Shaders/Shadow.vert", "Assets/Shaders/Shadow.frag");
+
+    glGenFramebuffers(1, &depthMapFBO);
+
+    // Create 2D depth texture
+    glGenTextures(1, &depthMap); // use member variable, not local
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+    float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    // Attach depth texture to framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE); // no color output
+    glReadBuffer(GL_NONE);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        LOG_ERROR("Shadow framebuffer not complete!");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
 void ChunkManager::RequestChunk(int x, int z)
 {
@@ -256,9 +290,61 @@ void ChunkManager::Update(const Shader &shader)
             transparentChunks.push_back(chunk);
     }
 
-    // Draw opaque first
+    // Draw to the shadow map first
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glm::vec3 lightDir = glm::normalize(glm::vec3(0.5f, -1.0f, 0.5f));
+    float orthoSize = 160.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 300.0f;
+
+    // Position the "sun camera" so the player is centered
+    glm::vec3 lightPos = m_PlayerPosition - lightDir * 160.0f;
+
+    glm::mat4 lightProj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, nearPlane, farPlane);
+    glm::mat4 lightView = glm::lookAt(lightPos, m_PlayerPosition, glm::vec3(0, 1, 0));
+    glm::mat4 lightSpaceMatrix = lightProj * lightView;
+
+    // Bind shadow shader once
+    shadowShader.Bind();
+    shadowShader.SetUniform("u_LightSpaceMatrix", lightSpaceMatrix);
+
+    // Draw all opaque chunks into shadow map
     for (auto &chunk : opaqueChunks)
+    {
+        chunk->DrawOpaque(shadowShader);
+    }
+
+    for (auto &chunk : transparentChunks)
+    {
+        chunk->DrawTransparent(shadowShader); // Shadow shader discards fully transparent pixels
+    }
+
+    // Unbind framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    Window &window = Window::GetMain();
+    glViewport(0, 0, window.GetFrameBufferWidth(), window.GetFrameBufferHeight());
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Bind main shader
+    shader.Bind();
+    shader.SetUniform("u_CameraPos", m_PlayerPosition);
+    shader.SetUniform("u_LightSpaceMatrix", lightSpaceMatrix);
+    shader.SetUniform("u_ShadowMap", 0); // Texture unit 0
+
+    // Bind shadow map to texture unit 0
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    shader.SetUniform("u_ShadowMap", 1);
+
+    // Draw all opaque chunks with lighting + shadows
+    for (auto &chunk : opaqueChunks)
+    {
         chunk->DrawOpaque(shader);
+    }
 
     // Sort transparent chunks back-to-front
     std::sort(transparentChunks.begin(), transparentChunks.end(),
