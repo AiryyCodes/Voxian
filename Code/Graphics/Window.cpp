@@ -18,6 +18,8 @@ Window::Window(int width, int height, const std::string &title)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
+    glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
+
     m_Window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!m_Window)
     {

@@ -9,7 +9,7 @@
 class TextureArray2D
 {
 public:
-    TextureArray2D(std::vector<std::string> paths, int maxWidth, int maxHeight);
+    TextureArray2D(const std::vector<std::string> &paths, int maxWidth, int maxHeight);
 
     void Bind(const Shader &shader);
     void Unbind();

@@ -48,6 +48,8 @@ int main()
     glFrontFace(GL_CW);
     glCullFace(GL_BACK);
 
+    glEnable(GL_FRAMEBUFFER_SRGB);
+
     Input::SetCursorMode(CursorMode::Locked);
 
     g_BlockRegistry.Init();

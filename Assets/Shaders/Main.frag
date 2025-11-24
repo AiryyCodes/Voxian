@@ -1,7 +1,6 @@
 #version 410 core
 
-struct Block
-{
+struct Block {
     sampler2DArray Diffuse;
     vec2 MaxTexSize;
 };
@@ -16,18 +15,45 @@ in float v_AO;
 out vec4 v_FragColor;
 
 uniform Block u_Block;
+
+uniform vec3 u_LightDir      = normalize(vec3(0.5, -1.0, 0.0));
+uniform vec3 u_LightColor    = vec3(1.2, 1.2, 1.2);
+uniform vec3 u_AmbientColor  = vec3(0.7, 0.7, 0.7);
 uniform float u_AlphaCutoff = 0.5;
+
+vec3 tonemap(vec3 x)
+{
+    return x / (1.0 + x);
+}
 
 void main()
 {
-    vec2 scaledUV = v_UV * (v_TexSize / u_Block.MaxTexSize);
-    vec4 texColor = texture(u_Block.Diffuse, vec3(scaledUV, v_Layer));
+    vec2 epsilon = 0.5 / vec2(v_TexSize);
+    vec2 uv = clamp(v_UV, epsilon, 1.0 - epsilon);
 
-    vec3 color = texColor.rgb * v_AO;
+    vec2 scaledUV = uv * (vec2(v_TexSize) / u_Block.MaxTexSize);
+
+    vec2 ddx = dFdx(scaledUV);
+    vec2 ddy = dFdy(scaledUV);
+    vec4 texColor = textureGrad(u_Block.Diffuse, vec3(scaledUV, v_Layer), ddx, ddy);
 
     if (texColor.a < u_AlphaCutoff)
-        discard;   // Alpha test
+        discard;
 
-    v_FragColor = vec4(color, texColor.a);
-    // FragColor = vec4(0.9, 0.5, 0.2, 1.0);
+    vec3 N = normalize(v_Normal);
+
+    float NdotL = max(dot(N, -u_LightDir), 0.0);
+
+    vec3 diffuse  = u_LightColor * NdotL;
+    vec3 ambient  = u_AmbientColor;
+
+    float ao = v_AO * 1.1;
+
+    vec3 lit = (diffuse + ambient) * ao * texColor.rgb;
+
+    // Filmic tone mapping for soft contrast
+    lit = tonemap(lit);
+
+    v_FragColor = vec4(lit, texColor.a);
 }
+

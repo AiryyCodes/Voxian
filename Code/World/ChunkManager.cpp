@@ -427,9 +427,23 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
 {
     MeshData data;
 
-    Vector3f p000(0, 0, 0), p001(0, 0, 1), p010(0, 1, 0), p011(0, 1, 1);
-    Vector3f p100(1, 0, 0), p101(1, 0, 1), p110(1, 1, 0), p111(1, 1, 1);
-    Vector2f uv0(0, 1), uv1(1, 1), uv2(1, 0), uv3(0, 0);
+    // Slight epsilon expansion to prevent cracks
+    const float eps = 0.001f;
+
+    Vector3f p000(0 - eps, 0 - eps, 0 - eps);
+    Vector3f p001(0 - eps, 0 - eps, 1 + eps);
+    Vector3f p010(0 - eps, 1 + eps, 0 - eps);
+    Vector3f p011(0 - eps, 1 + eps, 1 + eps);
+    Vector3f p100(1 + eps, 0 - eps, 0 - eps);
+    Vector3f p101(1 + eps, 0 - eps, 1 + eps);
+    Vector3f p110(1 + eps, 1 + eps, 0 - eps);
+    Vector3f p111(1 + eps, 1 + eps, 1 + eps);
+
+    // Exact UVs for seamless textures
+    Vector2f uv0(0, 1);
+    Vector2f uv1(1, 1);
+    Vector2f uv2(1, 0);
+    Vector2f uv3(0, 0);
 
     for (int x = 0; x < CHUNK_WIDTH; ++x)
     {
@@ -551,11 +565,11 @@ std::array<float, 4> ChunkManager::GetVertexAOs(const BlockData &localData, cons
     auto getOcclusion = [](bool s1, bool s2, bool c) -> float
     {
         if (s1 && s2 && c)
-            return 0.7f;
+            return 0.5f;
         if (s1 && s2)
-            return 0.8f;
+            return 0.6f;
         if (s1 || s2 || c)
-            return 0.9f;
+            return 0.6f;
         return 1.0f;
     };
 
