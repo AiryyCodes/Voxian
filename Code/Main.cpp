@@ -71,13 +71,14 @@ int main()
         chunkManager.UpdatePlayerPosition(camera.GetPosition());
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.4f, 0.6f, 0.7f, 1.0f);
+        glClearColor(0.2f, 0.4f, 0.5f, 1.0f);
 
         glViewport(0, 0, window.GetFrameBufferWidth(), window.GetFrameBufferHeight());
 
         shader.Bind();
         shader.SetUniform("u_View", camera.GetMatrices().view);
         shader.SetUniform("u_Projection", camera.GetMatrices().projection);
+        shader.SetUniform("u_CameraPos", camera.GetPosition());
 
         chunkManager.Update(shader);
 

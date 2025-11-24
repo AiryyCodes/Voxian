@@ -125,6 +125,17 @@ void Shader::SetUniform(const std::string &name, const Vector2 &value) const
     glUniform2fv(location, 1, glm::value_ptr(value));
 }
 
+void Shader::SetUniform(const std::string &name, const Vector3 &value) const
+{
+    int location = glGetUniformLocation(m_Id, name.c_str());
+    if (location == -1)
+    {
+        return;
+    }
+
+    glUniform3fv(location, 1, glm::value_ptr(value));
+}
+
 void Shader::SetUniform(const std::string &name, bool value) const
 {
     int location = glGetUniformLocation(m_Id, name.c_str());

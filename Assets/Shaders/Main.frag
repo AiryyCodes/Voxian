@@ -16,14 +16,31 @@ out vec4 v_FragColor;
 
 uniform Block u_Block;
 
+uniform vec3 u_CameraPos;
+
 uniform vec3 u_LightDir      = normalize(vec3(0.5, -1.0, 0.0));
 uniform vec3 u_LightColor    = vec3(1.2, 1.2, 1.2);
 uniform vec3 u_AmbientColor  = vec3(0.7, 0.7, 0.7);
+
 uniform float u_AlphaCutoff = 0.5;
+
+uniform vec3 u_FogColor = vec3(0.2, 0.4, 0.5);
+uniform float u_RenderDistance = 160;
 
 vec3 tonemap(vec3 x)
 {
     return x / (1.0 + x);
+}
+
+float getFogFactor()
+{
+    float dist = distance(v_FragPos, u_CameraPos);
+    float fogStart = u_RenderDistance - 8.0;
+    float fogEnd   = u_RenderDistance;
+
+    float fogFactor = clamp((fogEnd - dist) / (fogEnd - fogStart), 0.0, 1.0);
+
+    return fogFactor;
 }
 
 void main()
@@ -54,6 +71,9 @@ void main()
     // Filmic tone mapping for soft contrast
     lit = tonemap(lit);
 
-    v_FragColor = vec4(lit, texColor.a);
+    float fogFactor = getFogFactor();
+    vec3 finalColor = mix(u_FogColor, lit, fogFactor);
+
+    v_FragColor = vec4(finalColor, texColor.a);
 }
 
