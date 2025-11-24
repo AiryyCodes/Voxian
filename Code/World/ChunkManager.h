@@ -42,6 +42,8 @@ private:
     void GenerateTreesForChunk(int cx, int cz);
     void ApplyStructures(int cx, int cz, BlockData &data);
 
+    bool CanPlaceTree(const Vector3i &pos, int chunkX, int chunkZ);
+
 private:
     const int m_MaxRebuildsPerFrame = 2;
 

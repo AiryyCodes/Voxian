@@ -75,6 +75,8 @@ void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
         int(std::floor(pos.x / CHUNK_WIDTH)),
         int(std::floor(pos.z / CHUNK_WIDTH))};
 
+    // LOG_INFO("Chunk Pos: ({}, {})", center.x, center.y);
+
     // Calculate desired chunks
     std::vector<std::pair<int, Vector2i>> desired;
     for (int dz = -m_ViewDistance; dz <= m_ViewDistance; dz++)
@@ -105,9 +107,6 @@ void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
         }
     }
 
-    // -------------------------
-    // Request a FEW missing chunks
-    // -------------------------
     int MAX_REQUESTS_PER_FRAME = 2;
     int made = 0;
 
@@ -389,40 +388,6 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
     return data;
 }
 
-void ChunkManager::GenerateTreesForChunk(int cx, int cz)
-{
-    const int W = CHUNK_WIDTH;
-    Vector2i key{cx, cz};
-    auto &list = m_Trees[key]; // creates entry if missing
-
-    // Decide tree count based on noise
-    float noiseVal = m_Noise.GetNoise(float(cx * 10), float(cz * 10));
-    int treeCount = int((noiseVal + 1.0f) * 2.0f); // 0..4 trees per chunk
-
-    for (int i = 0; i < treeCount; ++i)
-    {
-        // Pick deterministic base coordinates in the chunk
-        float fx = m_Noise.GetNoise(float(cx * 100 + i), float(cz * 100 + i));
-        float fz = m_Noise.GetNoise(float(cx * 200 + i), float(cz * 200 + i));
-
-        int wx = cx * W + int((fx + 1.0f) * 0.5f * (W - 4)) + 2;
-        int wz = cz * W + int((fz + 1.0f) * 0.5f * (W - 4)) + 2;
-
-        // Determine terrain height using noise
-        int wy = int(CHUNK_BASE_HEIGHT + m_Noise.GetNoise(float(wx), float(wz)) * 20.0f);
-        if (wy < 1)
-            wy = 1;
-        if (wy >= CHUNK_HEIGHT - 1)
-            wy = CHUNK_HEIGHT - 2;
-
-        Tree tree;
-        tree.BasePos = Vector3i(wx, wy, wz);
-        tree.Blocks = GenerateTreeBlocks(tree.BasePos);
-
-        list.push_back(tree);
-    }
-}
-
 MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int chunkZ)
 {
     MeshData data;
@@ -652,6 +617,72 @@ std::array<Vector3i, 3> ChunkManager::GetAONeighbors(int vertexIndex, const Vect
     }
 
     return neighbors[vertexIndex];
+}
+
+void ChunkManager::GenerateTreesForChunk(int chunkX, int chunkZ)
+{
+    const int W = CHUNK_WIDTH;
+    Vector2i key{chunkX, chunkZ};
+    auto &list = m_Trees[key]; // creates entry if missing
+
+    // Decide tree count based on noise
+    float noiseVal = m_Noise.GetNoise(float(chunkX * 10), float(chunkZ * 10));
+    int treeCount = int((noiseVal + 1.0f) * 2.0f); // 0..4 trees per chunk
+
+    for (int i = 0; i < treeCount; ++i)
+    {
+        // Pick deterministic base coordinates in the chunk
+        float fx = m_Noise.GetNoise(float(chunkX * 100 + i), float(chunkZ * 100 + i));
+        float fz = m_Noise.GetNoise(float(chunkX * 200 + i), float(chunkZ * 200 + i));
+
+        int wx = chunkX * W + int((fx + 1.0f) * 0.5f * (W - 4)) + 2;
+        int wz = chunkZ * W + int((fz + 1.0f) * 0.5f * (W - 4)) + 2;
+
+        // Determine terrain height using noise
+        int wy = int(CHUNK_BASE_HEIGHT + m_Noise.GetNoise(float(wx), float(wz)) * 20.0f);
+        if (wy < 1)
+            wy = 1;
+        if (wy >= CHUNK_HEIGHT - 1)
+            wy = CHUNK_HEIGHT - 2;
+
+        if (!CanPlaceTree(Vector3i(wx, wy, wz), chunkX, chunkZ))
+            continue;
+
+        Tree tree;
+        tree.BasePos = Vector3i(wx, wy, wz);
+        tree.Blocks = GenerateTreeBlocks(tree.BasePos);
+
+        list.push_back(tree);
+    }
+}
+
+bool ChunkManager::CanPlaceTree(const Vector3i &pos, int chunkX, int chunkZ)
+{
+    int localX = pos.x - chunkX * CHUNK_WIDTH;
+    int localZ = pos.z - chunkZ * CHUNK_WIDTH;
+
+    for (int dx = -1; dx <= 1; dx++)
+        for (int dz = -1; dz <= 1; dz++)
+        {
+            Vector2i key{chunkX + dx, chunkZ + dz};
+
+            auto it = m_Trees.find(key);
+            if (it == m_Trees.end())
+                continue;
+
+            for (const Tree &other : it->second)
+            {
+                // compute world-space distance
+                float dist = glm::distance(
+                    glm::vec2(pos.x, pos.z),
+                    glm::vec2(other.BasePos.x, other.BasePos.z));
+
+                if (dist < 2.0f) // 1 block space between → centers ≥ 2
+                    return false;
+            }
+        }
+
+    return true;
 }
 
 void ChunkManager::PlaceTree(const Tree &tree, BlockData &data, const Vector2i &chunkPos)

@@ -26,7 +26,6 @@ void Chunk::UploadMeshToGPU()
 
     std::scoped_lock lock(m_MeshMutex);
 
-    // ----------- Helper lambda to upload one mesh section -----------
     auto uploadSection = [&](const MeshSection &src,
                              GLuint &vao, GLuint &vbo, GLuint &ebo)
     {
@@ -90,7 +89,6 @@ void Chunk::DeleteGPUData()
 {
     std::scoped_lock lock(m_MeshMutex);
 
-    // ---- Delete opaque mesh buffers ----
     if (m_OpaqueVAO)
     {
         glDeleteVertexArrays(1, &m_OpaqueVAO);
@@ -107,7 +105,6 @@ void Chunk::DeleteGPUData()
         m_OpaqueEBO = 0;
     }
 
-    // ---- Delete transparent mesh buffers ----
     if (m_TransVAO)
     {
         glDeleteVertexArrays(1, &m_TransVAO);
