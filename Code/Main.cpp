@@ -76,15 +76,15 @@ int main()
         glViewport(0, 0, window.GetFrameBufferWidth(), window.GetFrameBufferHeight());
 
         shader.Bind();
-        shader.SetUniform("u_View", camera.GetMatrices().view);
-        shader.SetUniform("u_Projection", camera.GetMatrices().projection);
+        shader.SetUniform("u_View", camera.GetMatrices().View);
+        shader.SetUniform("u_Projection", camera.GetMatrices().Projection);
         shader.SetUniform("u_CameraPos", camera.GetPosition());
 
-        chunkManager.Update(shader);
+        chunkManager.Update(shader, camera);
 
         window.SwapBuffers();
 
-        // LOG_INFO("FPS: {}", fps);
+        LOG_INFO("FPS: {}", fps);
     }
 
     // glfwTerminate();

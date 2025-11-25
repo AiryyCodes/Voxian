@@ -2,6 +2,7 @@
 
 #include "Graphics/Shader.h"
 #include "Graphics/Vertex.h"
+#include "Math/AABB.h"
 #include "Math/Vector.h"
 #include "World/Block.h"
 
@@ -107,6 +108,8 @@ public:
     std::atomic<bool> m_ShouldUnload{false};
 
     void MarkMeshDirty();
+
+    AABB GetAABB() const;
 
 private:
     friend class ChunkManager;

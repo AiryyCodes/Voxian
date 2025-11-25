@@ -6,6 +6,7 @@
 
 #include "World/ChunkManager.h"
 #include "FastNoiseLite.h"
+#include "Graphics/Camera.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
 #include "Graphics/Window.h"
@@ -164,7 +165,7 @@ void ChunkManager::UpdatePlayerPosition(const Vector3 &pos)
     }
 }
 
-void ChunkManager::Update(const Shader &shader)
+void ChunkManager::Update(const Shader &shader, const Camera &camera)
 {
     int px = static_cast<int>(std::floor(m_PlayerPosition.x / CHUNK_WIDTH));
     int pz = static_cast<int>(std::floor(m_PlayerPosition.z / CHUNK_WIDTH));
@@ -291,6 +292,14 @@ void ChunkManager::Update(const Shader &shader)
             transparentChunks.push_back(chunk);
     }
 
+    Camera::Frustum frustum = camera.GetFrustum();
+    /*
+    if (camera.IsInsideFrustum(frustum, chunk->GetAABB()))
+    {
+        continue;
+    }
+    */
+
     // Draw to the shadow map first
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
@@ -315,11 +324,17 @@ void ChunkManager::Update(const Shader &shader)
     // Draw all opaque chunks into shadow map
     for (auto &chunk : opaqueChunks)
     {
+        if (!camera.IsInsideFrustum(frustum, chunk->GetAABB()))
+            continue;
+
         chunk->DrawOpaque(shadowShader);
     }
 
     for (auto &chunk : transparentChunks)
     {
+        if (!camera.IsInsideFrustum(frustum, chunk->GetAABB()))
+            continue;
+
         chunk->DrawTransparent(shadowShader); // Shadow shader discards fully transparent pixels
     }
 
@@ -344,6 +359,9 @@ void ChunkManager::Update(const Shader &shader)
     // Draw all opaque chunks with lighting + shadows
     for (auto &chunk : opaqueChunks)
     {
+        if (!camera.IsInsideFrustum(frustum, chunk->GetAABB()))
+            continue;
+
         chunk->DrawOpaque(shader);
     }
 
@@ -358,7 +376,12 @@ void ChunkManager::Update(const Shader &shader)
 
     // Draw transparent
     for (auto &chunk : transparentChunks)
+    {
+        if (!camera.IsInsideFrustum(frustum, chunk->GetAABB()))
+            continue;
+
         chunk->DrawTransparent(shader);
+    }
 }
 
 std::shared_ptr<Chunk> ChunkManager::GetChunk(int x, int z)

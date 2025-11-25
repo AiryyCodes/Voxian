@@ -1,9 +1,11 @@
 #pragma once
 
 #include "FastNoiseLite.h"
+#include "Graphics/Camera.h"
 #include "Graphics/Shader.h"
 #include "Math/Noise.h"
 #include "Math/Vector.h"
+#include "Memory.h"
 #include "Queue.h"
 #include "ThreadPool.h"
 #include "World/Block.h"
@@ -24,7 +26,7 @@ public:
     std::shared_ptr<Chunk> GetChunk(int x, int z);
 
     void UpdatePlayerPosition(const Vector3 &pos);
-    void Update(const Shader &shader);
+    void Update(const Shader &shader, const Camera &camera);
 
 private:
     const BlockState &GetBlock(int x, int y, int z, int chunkX, int chunkZ, const BlockData &localData);

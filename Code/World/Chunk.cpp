@@ -218,3 +218,15 @@ void Chunk::MarkMeshDirty()
         SetState(State::BlocksReady);
     }
 }
+
+AABB Chunk::GetAABB() const
+{
+    glm::vec3 base = glm::vec3(
+        m_Position.x * CHUNK_WIDTH,
+        0,
+        m_Position.y * CHUNK_WIDTH);
+
+    return {
+        base,
+        base + glm::vec3(CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_WIDTH)};
+}

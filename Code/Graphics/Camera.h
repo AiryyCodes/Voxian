@@ -10,19 +10,36 @@ class Camera
 public:
     struct Matrices
     {
-        Matrix4 view;
-        Matrix4 projection;
+        Matrix4 View;
+        Matrix4 Projection;
+    };
+
+    struct Plane
+    {
+        Vector3f Normal;
+        float D;
+    };
+
+    struct Frustum
+    {
+        Plane Planes[6];
     };
 
 public:
     void Update();
     void Draw(const Shader &shader, const Matrices &matrices) const;
 
+    Frustum GetFrustum() const;
+    bool IsInsideFrustum(const Camera::Frustum &frustum, const AABB &box) const;
+
     Matrix4 GetViewMatrix();
     Matrix4 GetProjectionMatrix();
 
     const Vector3f &GetPosition() const { return m_Position; }
     const Vector3f &GetRotation() const { return m_Rotation; }
+
+    const Vector3f &GetRight() const { return m_Right; }
+    const Vector3f &GetForward() const { return m_Forward; }
 
     const Matrices &GetMatrices() const { return m_Matrices; }
 
