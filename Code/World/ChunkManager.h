@@ -2,6 +2,7 @@
 
 #include "FastNoiseLite.h"
 #include "Graphics/Shader.h"
+#include "Math/Noise.h"
 #include "Math/Vector.h"
 #include "Queue.h"
 #include "ThreadPool.h"
@@ -65,7 +66,7 @@ private:
 
     ThreadPool m_ThreadPool;
 
-    FastNoiseLite m_Noise;
+    Noise m_Noise;
 
     std::mutex m_TreesMutex;
     std::unordered_map<Vector2i, std::vector<Tree>> m_Trees;

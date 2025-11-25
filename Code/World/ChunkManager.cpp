@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <glad/gl.h>
 
@@ -404,14 +405,13 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
 
     const int W = CHUNK_WIDTH;
     const int H = CHUNK_HEIGHT;
-
     const int PW = W + 2;
     const int PH = H + 2;
 
+    const int baseHeight = CHUNK_BASE_HEIGHT;
     const float amplitude = 20.0f;
     const int minDirt = 1;
-    const int maxDirt = 1;
-    const int seaLevel = CHUNK_BASE_HEIGHT;
+    const int maxDirt = 3;
 
     for (int px = 0; px < PW; ++px)
     {
@@ -420,25 +420,14 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
             int wx = chunkX * W + (px - 1);
             int wz = chunkZ * W + (pz - 1);
 
-            // Base terrain noise
-            float hNoise = m_Noise.GetNoise(float(wx), float(wz));
-            int terrainHeight = int(CHUNK_BASE_HEIGHT + hNoise * amplitude);
+            // Smooth height using fractal noise
+            float hNoise = m_Noise.GetFractalNoise2D(float(wx), float(wz));
+            int terrainHeight = int(baseHeight + hNoise * amplitude);
+            terrainHeight = std::clamp(terrainHeight, 0, H - 1);
 
-            if (terrainHeight < 0)
-                terrainHeight = 0;
-            if (terrainHeight >= H)
-                terrainHeight = H - 1;
-
-            // Optional: vary dirt thickness per column
-            int dirtThickness = minDirt + (int)(m_Noise.GetNoise(float(wx + 1000), float(wz + 1000)) * (maxDirt - minDirt));
-            if (dirtThickness < minDirt)
-                dirtThickness = minDirt;
-            if (dirtThickness > maxDirt)
-                dirtThickness = maxDirt;
-
-            int stoneHeight = terrainHeight - dirtThickness;
-            if (stoneHeight < 1)
-                stoneHeight = 1; // always leave at least 1 stone block
+            // Dirt thickness variation
+            int dirtThickness = minDirt + int((m_Noise.GetFractalNoise2D(float(wx + 1000), float(wz + 1000), 2, 0.5f, 0.05f)) * (maxDirt - minDirt));
+            dirtThickness = std::clamp(dirtThickness, minDirt, maxDirt);
 
             for (int py = 0; py < PH; ++py)
             {
@@ -455,15 +444,15 @@ BlockData ChunkManager::GenerateBlocks(int chunkX, int chunkZ)
                 }
                 else if (wy == terrainHeight)
                 {
-                    id = BLOCK_GRASS; // top block is always grass
+                    id = BLOCK_GRASS;
                 }
                 else if (wy >= terrainHeight - dirtThickness)
                 {
-                    id = BLOCK_DIRT; // dirt layer below grass
+                    id = BLOCK_DIRT;
                 }
                 else
                 {
-                    id = BLOCK_STONE; // everything below dirt is stone
+                    id = BLOCK_STONE;
                 }
 
                 data.SetID(px, py, pz, id);
@@ -709,27 +698,28 @@ void ChunkManager::GenerateTreesForChunk(int chunkX, int chunkZ)
 {
     const int W = CHUNK_WIDTH;
     Vector2i key{chunkX, chunkZ};
-    auto &list = m_Trees[key]; // creates entry if missing
+    auto &list = m_Trees[key];
 
-    // Decide tree count based on noise
-    float noiseVal = m_Noise.GetNoise(float(chunkX * 10), float(chunkZ * 10));
-    int treeCount = int((noiseVal + 1.0f) * 2.0f); // 0..4 trees per chunk
+    uint32_t seed = static_cast<uint32_t>(int64_t(chunkX) * 73856093 + int64_t(chunkZ) * 19349663);
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<float> distXZ(2.0f, W - 2.0f);
+
+    std::uniform_int_distribution<int> treeCountDist(1, 3);
+
+    // Determine number of trees per chunk using fractal noise
+    float noiseVal = m_Noise.GetFractalNoise2D(float(chunkX * 5), float(chunkZ * 5), 3, 0.5f, 0.2f);
+    int baseCount = int((noiseVal + 1.0f) * 2.0f);
+    int extraCount = treeCountDist(rng);
+    int treeCount = baseCount + extraCount;
 
     for (int i = 0; i < treeCount; ++i)
     {
-        // Pick deterministic base coordinates in the chunk
-        float fx = m_Noise.GetNoise(float(chunkX * 100 + i), float(chunkZ * 100 + i));
-        float fz = m_Noise.GetNoise(float(chunkX * 200 + i), float(chunkZ * 200 + i));
+        int wx = chunkX * W + int(distXZ(rng));
+        int wz = chunkZ * W + int(distXZ(rng));
 
-        int wx = chunkX * W + int((fx + 1.0f) * 0.5f * (W - 4)) + 2;
-        int wz = chunkZ * W + int((fz + 1.0f) * 0.5f * (W - 4)) + 2;
-
-        // Determine terrain height using noise
-        int wy = int(CHUNK_BASE_HEIGHT + m_Noise.GetNoise(float(wx), float(wz)) * 20.0f);
-        if (wy < 1)
-            wy = 1;
-        if (wy >= CHUNK_HEIGHT - 1)
-            wy = CHUNK_HEIGHT - 2;
+        float hNoise = m_Noise.GetFractalNoise2D(float(wx), float(wz), 4, 0.5f);
+        int wy = int(CHUNK_BASE_HEIGHT + hNoise * 20.0f);
+        wy = std::clamp(wy, 1, CHUNK_HEIGHT - 2);
 
         if (!CanPlaceTree(Vector3i(wx, wy, wz), chunkX, chunkZ))
             continue;
@@ -737,7 +727,6 @@ void ChunkManager::GenerateTreesForChunk(int chunkX, int chunkZ)
         Tree tree;
         tree.BasePos = Vector3i(wx, wy, wz);
         tree.Blocks = GenerateTreeBlocks(tree.BasePos);
-
         list.push_back(tree);
     }
 }
@@ -763,7 +752,7 @@ bool ChunkManager::CanPlaceTree(const Vector3i &pos, int chunkX, int chunkZ)
                     glm::vec2(pos.x, pos.z),
                     glm::vec2(other.BasePos.x, other.BasePos.z));
 
-                if (dist < 2.0f) // 1 block space between → centers ≥ 2
+                if (dist < 3.0f)
                     return false;
             }
         }
