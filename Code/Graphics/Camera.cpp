@@ -1,5 +1,6 @@
 #include "Graphics/Camera.h"
 #include "Graphics/Window.h"
+#include "Logger.h"
 #include "Math/Matrix.h"
 #include "Math/Vector.h"
 #include "MyTime.h"
@@ -64,6 +65,8 @@ void Camera::Update()
     float aspect = (float)window.GetWidth() / (float)window.GetHeight();
 
     m_Matrices.Projection = glm::perspective(glm::radians(m_Fov), aspect, m_Near, m_Far);
+
+    // LOG_INFO("Position: ({}, {}, {})", m_Position.x, m_Position.y, m_Position.z);
 }
 
 void Camera::Draw(const Shader &shader, const Matrices &matrices) const

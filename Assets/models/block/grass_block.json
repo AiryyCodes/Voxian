@@ -1,0 +1,11 @@
+{
+    "extends": "block/cube",
+    "textures": {
+        "up": "block/grass_block_top",
+        "down": "block/grass_block_bottom",
+        "north": "block/grass_block_side",
+        "south": "block/grass_block_side",
+        "west": "block/grass_block_side",
+        "east": "block/grass_block_side"
+    }
+}

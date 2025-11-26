@@ -5,7 +5,6 @@
 #include <glad/gl.h>
 
 #include "World/ChunkManager.h"
-#include "FastNoiseLite.h"
 #include "Graphics/Camera.h"
 #include "Graphics/Shader.h"
 #include "Graphics/Texture.h"
@@ -14,7 +13,7 @@
 #include "Math/Vector.h"
 #include "Memory.h"
 #include "Queue.h"
-#include "World/Block.h"
+#include "World/BlockRegistry.h"
 #include "World/Chunk.h"
 #include "World/Structure.h"
 
@@ -22,7 +21,7 @@ const unsigned int SHADOW_WIDTH = 4096, SHADOW_HEIGHT = 4096;
 
 ChunkManager::ChunkManager()
 {
-    shadowShader.Init("Assets/Shaders/Shadow.vert", "Assets/Shaders/Shadow.frag");
+    shadowShader.Init("Assets/shaders/Shadow.vert", "Assets/shaders/Shadow.frag");
 
     glGenFramebuffers(1, &depthMapFBO);
 
@@ -293,12 +292,6 @@ void ChunkManager::Update(const Shader &shader, const Camera &camera)
     }
 
     Camera::Frustum frustum = camera.GetFrustum();
-    /*
-    if (camera.IsInsideFrustum(frustum, chunk->GetAABB()))
-    {
-        continue;
-    }
-    */
 
     // Draw to the shadow map first
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -490,23 +483,31 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
 {
     MeshData data;
 
-    // Slight epsilon expansion to prevent cracks
+    // For a 16x256x16 chunk (65536 blocks)
+    const size_t MAX_VERTICES = 1572864; // 65536 * 24
+    const size_t MAX_INDICES = 2359296;  // 65536 * 36
+
+    data.Opaque.Vertices.reserve(MAX_VERTICES / 2);
+    data.Opaque.Indices.reserve(MAX_INDICES / 2);
+
+    data.Transparent.Vertices.reserve(MAX_VERTICES / 2);
+    data.Transparent.Indices.reserve(MAX_INDICES / 2);
+
     const float eps = 0.001f;
 
-    Vector3f p000(0 - eps, 0 - eps, 0 - eps);
-    Vector3f p001(0 - eps, 0 - eps, 1 + eps);
-    Vector3f p010(0 - eps, 1 + eps, 0 - eps);
-    Vector3f p011(0 - eps, 1 + eps, 1 + eps);
-    Vector3f p100(1 + eps, 0 - eps, 0 - eps);
-    Vector3f p101(1 + eps, 0 - eps, 1 + eps);
-    Vector3f p110(1 + eps, 1 + eps, 0 - eps);
-    Vector3f p111(1 + eps, 1 + eps, 1 + eps);
+    struct FaceIndices
+    {
+        int v0, v1, v2, v3;
+        Vector3i normal;
+    };
 
-    // Exact UVs for seamless textures
-    Vector2f uv0(0, 1);
-    Vector2f uv1(1, 1);
-    Vector2f uv2(1, 0);
-    Vector2f uv3(0, 0);
+    static const std::unordered_map<std::string, FaceIndices> faceMap = {
+        {"up", {2, 6, 7, 3, Vector3i(0, 1, 0)}},
+        {"down", {1, 5, 4, 0, Vector3i(0, -1, 0)}},  // **CORRECTED** from {0, 1, 5, 4, ...}
+        {"north", {1, 0, 2, 3, Vector3i(-1, 0, 0)}}, // **CORRECTED** from {2, 6, 4, 0, ...}
+        {"south", {4, 5, 7, 6, Vector3i(1, 0, 0)}},
+        {"east", {5, 1, 3, 7, Vector3i(0, 0, 1)}},
+        {"west", {0, 4, 6, 2, Vector3i(0, 0, -1)}}};
 
     for (int x = 0; x < CHUNK_WIDTH; ++x)
     {
@@ -518,97 +519,136 @@ MeshData ChunkManager::GenerateMesh(const BlockData &blockData, int chunkX, int 
                 if (state.IsAir())
                     continue;
 
-                bool isTransparent = state.IsTransparent();
-                int blockId = state.GetId();
+                const bool isTransparent = state.IsTransparent();
                 Vector3 blockPos(x, y, z);
+                const Model &model = state.GetModel();
 
-                struct Face
+                for (const Element &elem : model.Elements)
                 {
-                    Vector3f v0, v1, v2, v3;
-                    Vector3i normal;
-                };
+                    // Not being called...
+                    // LOG_INFO("Element: {}, {}, {}", elem.From[0], elem.From[1], elem.From[2]);
 
-                Face faces[6] = {
-                    {blockPos + p100, blockPos + p101, blockPos + p111, blockPos + p110, Vector3i(1, 0, 0)},  // +X
-                    {blockPos + p001, blockPos + p000, blockPos + p010, blockPos + p011, Vector3i(-1, 0, 0)}, // -X
-                    {blockPos + p010, blockPos + p110, blockPos + p111, blockPos + p011, Vector3i(0, 1, 0)},  // +Y
-                    {blockPos + p001, blockPos + p101, blockPos + p100, blockPos + p000, Vector3i(0, -1, 0)}, // -Y
-                    {blockPos + p101, blockPos + p001, blockPos + p011, blockPos + p111, Vector3i(0, 0, 1)},  // +Z
-                    {blockPos + p000, blockPos + p100, blockPos + p110, blockPos + p010, Vector3i(0, 0, -1)}, // -Z
-                };
+                    Vector3f from(elem.From[0] / 16.0f, elem.From[1] / 16.0f, elem.From[2] / 16.0f);
+                    Vector3f to(elem.To[0] / 16.0f, elem.To[1] / 16.0f, elem.To[2] / 16.0f);
 
-                for (auto &face : faces)
-                {
-                    int nx = x + face.normal.x;
-                    int ny = y + face.normal.y;
-                    int nz = z + face.normal.z;
+                    // Compute cube corners
+                    Vector3f points[8] = {
+                        blockPos + Vector3f(from.x, from.y, from.z),
+                        blockPos + Vector3f(from.x, from.y, to.z),
+                        blockPos + Vector3f(from.x, to.y, from.z),
+                        blockPos + Vector3f(from.x, to.y, to.z),
+                        blockPos + Vector3f(to.x, from.y, from.z),
+                        blockPos + Vector3f(to.x, from.y, to.z),
+                        blockPos + Vector3f(to.x, to.y, from.z),
+                        blockPos + Vector3f(to.x, to.y, to.z)};
 
-                    const BlockState &adj = GetBlock(nx, ny, nz, chunkX, chunkZ, blockData);
-
-                    bool skip = false;
-
-                    if (!isTransparent)
+                    for (const auto &[faceNameRaw, face] : elem.Faces)
                     {
-                        // opaque: skip if neighbor is opaque
-                        skip = (!adj.IsAir() && !adj.IsTransparent());
-                    }
+                        // Normalize face names from JSON
+                        std::string faceName = faceNameRaw;
+                        if (faceName == "top")
+                            faceName = "up";
+                        else if (faceName == "bottom")
+                            faceName = "down";
 
-                    if (isTransparent && face.normal.y != 0)
-                    {
-                        skip = false; // always draw top/bottom
-                    }
+                        auto fit = faceMap.find(faceName);
+                        if (fit == faceMap.end())
+                            continue; // Unknown face, skip
 
-                    if (skip)
-                        continue;
+                        const FaceIndices &fi = fit->second;
 
-                    auto &destMesh = isTransparent ? data.Transparent : data.Opaque;
-                    auto &verts = destMesh.Vertices;
-                    auto &inds = destMesh.Indices;
+                        int nx = x + fi.normal.x;
+                        int ny = y + fi.normal.y;
+                        int nz = z + fi.normal.z;
 
-                    unsigned int baseIndex = verts.size();
+                        const BlockState &adj = GetBlock(nx, ny, nz, chunkX, chunkZ, blockData);
 
-                    auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), Vector3i(face.normal), Vector2i(chunkX, chunkZ));
+                        // Neighbor culling
+                        bool skip = false;
+                        if (!isTransparent)
+                            skip = (!adj.IsAir() && !adj.IsTransparent());
 
-                    auto push = [&](Vector3f pos, Vector3i normal, Vector2f uv, float aoVal)
-                    {
-                        Ref<TextureArray2D> texture = g_BlockRegistry.GetTexture();
-                        if (!texture)
-                            return;
+                        // Always draw top/bottom for transparent blocks
+                        if (isTransparent && fi.normal.y != 0)
+                            skip = false;
 
-                        BlockVertex v;
-                        v.Position = pos;
-                        v.Normal = normal;
-                        v.UV = uv;
-                        v.TextureSize = Vector2i(texture->GetWidth(blockId * 6),
-                                                 texture->GetHeight(blockId * 6));
-                        v.Layer = blockId * 6;
+                        if (skip)
+                            continue;
 
-                        aoVal = isTransparent ? 1.0f : aoVal;
-                        v.AO = aoVal;
+                        auto &destMesh = isTransparent ? data.Transparent : data.Opaque;
+                        auto &verts = destMesh.Vertices;
+                        auto &inds = destMesh.Indices;
+                        unsigned int baseIndex = verts.size();
 
-                        verts.push_back(v);
-                    };
+                        auto ao = GetVertexAOs(blockData, Vector3i(x, y, z), fi.normal, Vector2i(chunkX, chunkZ));
 
-                    // Push vertices
-                    push(face.v0, face.normal, uv0, ao[0]);
-                    push(face.v1, face.normal, uv1, ao[1]);
-                    push(face.v2, face.normal, uv2, ao[2]);
-                    push(face.v3, face.normal, uv3, ao[3]);
+                        auto push = [&](const Vector3f &pos, const Vector3i &normal, const Vector2f &uv, float aoVal, int layer)
+                        {
+                            Ref<TextureArray2D> texture = g_BlockRegistry.GetTexture();
+                            if (!texture)
+                                return;
 
-                    float diag1 = ao[0] + ao[2];
-                    float diag2 = ao[1] + ao[3];
+                            BlockVertex v;
+                            v.Position = pos;
+                            v.Normal = normal;
+                            v.UV = uv;
+                            v.Layer = layer;
+                            v.TextureSize = Vector2i(texture->GetWidth(layer),
+                                                     texture->GetHeight(layer));
 
-                    if (diag1 > diag2)
-                    {
-                        inds.insert(inds.end(),
-                                    {baseIndex, baseIndex + 1, baseIndex + 2,
-                                     baseIndex, baseIndex + 2, baseIndex + 3});
-                    }
-                    else
-                    {
-                        inds.insert(inds.end(),
-                                    {baseIndex + 1, baseIndex + 2, baseIndex + 3,
-                                     baseIndex + 1, baseIndex + 3, baseIndex});
+                            v.AO = isTransparent ? 1.0f : aoVal;
+                            verts.push_back(v);
+                        };
+
+                        // Per-face texture layer
+                        std::string texName = face.Texture; // might be "#all"
+                        if (!texName.empty() && texName[0] == '#')
+                        {
+                            std::string key = texName.substr(1);
+                            auto it = model.Textures.find(key);
+                            if (it != model.Textures.end())
+                                texName = it->second;
+                            else
+                                texName = "missing";
+                        }
+
+                        size_t slash = texName.find_last_of('/');
+                        if (slash != std::string::npos)
+                            texName = texName.substr(slash + 1);
+
+                        int layer = g_BlockRegistry.GetTextureLayer(texName, (state.GetId() * 6) - 1);
+
+                        // Map UVs
+                        float u0 = face.UV[0] / 16.0f;
+                        float u1 = face.UV[2] / 16.0f;
+                        float v0 = 1.0f - face.UV[3] / 16.0f;
+                        float v1 = 1.0f - face.UV[1] / 16.0f;
+
+                        Vector2f uv0(u0, v1);
+                        Vector2f uv1(u1, v1);
+                        Vector2f uv2(u1, v0);
+                        Vector2f uv3(u0, v0);
+
+                        push(points[fi.v0], fi.normal, uv0, ao[0], layer);
+                        push(points[fi.v1], fi.normal, uv1, ao[1], layer);
+                        push(points[fi.v2], fi.normal, uv2, ao[2], layer);
+                        push(points[fi.v3], fi.normal, uv3, ao[3], layer);
+
+                        float diag1 = ao[0] + ao[2];
+                        float diag2 = ao[1] + ao[3];
+
+                        if (diag1 > diag2)
+                        {
+                            inds.insert(inds.end(),
+                                        {baseIndex, baseIndex + 1, baseIndex + 2,
+                                         baseIndex, baseIndex + 2, baseIndex + 3});
+                        }
+                        else
+                        {
+                            inds.insert(inds.end(),
+                                        {baseIndex + 1, baseIndex + 2, baseIndex + 3,
+                                         baseIndex + 1, baseIndex + 3, baseIndex});
+                        }
                     }
                 }
             }

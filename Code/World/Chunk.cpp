@@ -1,5 +1,6 @@
 
 #include "World/Chunk.h"
+#include "Logger.h"
 #include "World/ChunkManager.h"
 #include "Graphics/Texture.h"
 #include "Graphics/Vertex.h"

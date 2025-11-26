@@ -29,6 +29,7 @@ int main()
     Window window(1280, 720, "Voxian");
 
     glfwMakeContextCurrent(window.GetGLFWWindow());
+    glfwSwapInterval(0);
 
     int version = gladLoadGL(glfwGetProcAddress);
     if (!version)
@@ -40,13 +41,15 @@ int main()
     LOG_INFO("Loaded OpenGL {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     Shader shader;
-    shader.Init("Assets/Shaders/Main.vert", "Assets/Shaders/Main.frag");
+    shader.Init("Assets/shaders/Main.vert", "Assets/shaders/Main.frag");
 
     glEnable(GL_DEPTH_TEST);
 
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW);
     glCullFace(GL_BACK);
+
+    glDisable(GL_CULL_FACE);
 
     glEnable(GL_FRAMEBUFFER_SRGB);
 
@@ -84,7 +87,7 @@ int main()
 
         window.SwapBuffers();
 
-        LOG_INFO("FPS: {}", fps);
+        // LOG_INFO("FPS: {}", fps);
     }
 
     // glfwTerminate();

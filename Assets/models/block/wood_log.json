@@ -1,0 +1,6 @@
+{
+    "extends": "block/cube_all",
+    "textures": {
+        "all": "block/wood_log"
+    }
+}
