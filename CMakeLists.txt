@@ -12,8 +12,10 @@ target_include_directories(voxian PRIVATE "Code")
 
 add_subdirectory("Deps/glad")
 find_package(glfw3 REQUIRED)
+find_package(spdlog REQUIRED)
 
 target_link_libraries(voxian PRIVATE
     glfw
     glad
+    spdlog::spdlog
 )

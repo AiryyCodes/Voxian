@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "Logger.h"
 #include "Memory.h"
 #include "Window.h"
 
@@ -6,7 +7,7 @@ bool Engine::Init()
 {
     if (!glfwInit())
     {
-        printf("Failed to initialize GLFW!");
+        LOG_FATAL("Failed to initialize GLFW!");
         return false;
     }
 

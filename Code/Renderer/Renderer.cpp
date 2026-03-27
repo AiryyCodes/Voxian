@@ -1,8 +1,8 @@
-#include <cstdio>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 #include "Renderer.h"
+#include "Logger.h"
 #include "Window.h"
 
 Renderer::~Renderer()
@@ -19,11 +19,11 @@ bool Renderer::Init(const Window &window)
     int version = gladLoadGL(glfwGetProcAddress);
     if (!version)
     {
-        printf("Failed to initialize OpenGL context!");
+        LOG_FATAL("Failed to initialize OpenGL context!");
         return false;
     }
 
-    printf("Loaded OpenGL {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
+    LOG_INFO("Loaded OpenGL {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     return true;
 }
@@ -36,4 +36,14 @@ void Renderer::MakeCurrent() const
 void Renderer::SwapBuffers() const
 {
     glfwSwapBuffers(m_WindowHandle);
+}
+
+void Renderer::Clear(int flags) const
+{
+    glClear(flags);
+}
+
+void Renderer::ClearColor(float r, float g, float b, float a) const
+{
+    glClearColor(r, g, b, a);
 }
