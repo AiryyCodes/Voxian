@@ -10,6 +10,7 @@ public:
 
     bool Init(const Window &window);
 
+    void MakeCurrent() const;
     void SwapBuffers() const;
 
 private:
