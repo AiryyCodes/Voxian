@@ -1,5 +1,4 @@
 #include "Renderer.h"
-#include "Engine.h"
 #include "Window.h"
 
 #include <GLFW/glfw3.h>
@@ -11,13 +10,14 @@ Renderer::~Renderer()
 
 bool Renderer::Init(const Window &window)
 {
-    glfwMakeContextCurrent(window.GetHandle());
+    m_WindowHandle = window.GetHandle();
+
+    glfwMakeContextCurrent(m_WindowHandle);
 
     return true;
 }
 
 void Renderer::SwapBuffers() const
 {
-    Window &window = EngineContext::Get().GetWindow();
-    glfwSwapBuffers(window.GetHandle());
+    glfwSwapBuffers(m_WindowHandle);
 }
