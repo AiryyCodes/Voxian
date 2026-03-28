@@ -3,6 +3,7 @@
 
 #include "Renderer.h"
 #include "Logger.h"
+#include "Renderer/Mesh.h"
 #include "Window.h"
 
 Renderer::~Renderer()
@@ -25,6 +26,8 @@ bool Renderer::Init(const Window &window)
 
     LOG_INFO("Loaded OpenGL {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
+    glEnable(GL_MULTISAMPLE);
+
     return true;
 }
 
@@ -46,4 +49,11 @@ void Renderer::Clear(int flags) const
 void Renderer::ClearColor(float r, float g, float b, float a) const
 {
     glClearColor(r, g, b, a);
+}
+
+void Renderer::Submit(const Mesh &mesh)
+{
+    glBindVertexArray(mesh.GetVAO());
+    glDrawArrays(GL_TRIANGLES, 0, mesh.GetNumVertices());
+    glBindVertexArray(0);
 }

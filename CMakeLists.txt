@@ -10,6 +10,11 @@ file(GLOB_RECURSE VOXIAN_SOURCES
 add_executable(voxian ${VOXIAN_SOURCES})
 target_include_directories(voxian PRIVATE "Code")
 
+add_custom_target(copy_assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/Assets ${CMAKE_CURRENT_BINARY_DIR}/Assets
+)
+add_dependencies(voxian copy_assets)
+
 add_subdirectory("Deps/glad")
 find_package(glfw3 REQUIRED)
 find_package(spdlog REQUIRED)

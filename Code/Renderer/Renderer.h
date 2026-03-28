@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Renderer/Mesh.h"
 #include "Window.h"
 #include <GLFW/glfw3.h>
 
@@ -15,6 +16,8 @@ public:
 
     void Clear(int flags) const;
     void ClearColor(float r, float g, float b, float a) const;
+
+    void Submit(const Mesh &mesh);
 
 private:
     GLFWwindow *m_WindowHandle = nullptr;

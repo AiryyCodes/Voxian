@@ -6,6 +6,7 @@
 Window::Window(const std::string &title, int width, int height)
 {
     glfwDefaultWindowHints();
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     m_Handle = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!m_Handle)
