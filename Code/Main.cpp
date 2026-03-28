@@ -1,11 +1,14 @@
 #include "Engine.h"
 #include "Logger.h"
+#include "Math/Matrix.h"
+#include "Math/Vector.h"
 #include "Renderer/Mesh.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
 
 #include <GLFW/glfw3.h>
 #include <cstdlib>
+#include <glm/ext/matrix_transform.hpp>
 
 static const float TRIANGLE_VERTICES[] = {
     -0.5,
@@ -39,6 +42,9 @@ int main()
 
     Shader mainShader("Assets/Shaders/main");
 
+    Matrix4 transform(1.0f);
+    transform = glm::translate(transform, Vector3f(0.0f, 0.5f, 0.0f));
+
     while (engine.IsRunning())
     {
         glfwPollEvents();
@@ -48,6 +54,7 @@ int main()
 
         mainShader.Bind();
 
+        mainShader.Set("u_Transform", transform);
         renderer.Submit(triangleMesh);
 
         Shader::Unbind();

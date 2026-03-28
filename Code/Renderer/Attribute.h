@@ -17,9 +17,9 @@ struct AttribElement
 
 struct AttribInfo
 {
-    GLenum GlType;
-    GLint Components;
-    GLsizei Size;
+    unsigned int GlType;
+    int Components;
+    int Size;
 
     static AttribInfo FromType(AttribType type)
     {

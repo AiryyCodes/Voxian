@@ -1,10 +1,13 @@
 #include "Renderer/Shader.h"
 #include "Logger.h"
+#include "Math/Matrix.h"
+#include "Math/Vector.h"
 
 #include <cassert>
 #include <fstream>
 #include <glad/gl.h>
 #include <string>
+#include <glm/gtc/type_ptr.hpp>
 
 Shader::Shader(const std::string &basePath)
 {
@@ -49,7 +52,7 @@ unsigned int Shader::CompileStage(unsigned int type, const std::string &source, 
     glShaderSource(id, 1, &cstr, nullptr);
     glCompileShader(id);
 
-    GLint success;
+    int success;
     glGetShaderiv(id, GL_COMPILE_STATUS, &success);
     if (!success)
     {
@@ -68,4 +71,27 @@ std::string Shader::ReadFile(const std::string &path)
     assert(file.is_open() && "Shader file not found!");
     return {std::istreambuf_iterator<char>(file),
             std::istreambuf_iterator<char>()};
+}
+
+unsigned int Shader::GetUniformLocation(const char *name)
+{
+    auto it = m_UniformCache.find(name);
+    if (it != m_UniformCache.end())
+        return it->second;
+
+    int location = glGetUniformLocation(m_ProgramId, name);
+    assert(location != -1 && "Uniform not found");
+    m_UniformCache[name] = location;
+
+    return location;
+}
+
+void Shader::Set(const char *name, const Vector3f &value)
+{
+    glUniform3fv(GetUniformLocation(name), 1, glm::value_ptr(value));
+}
+
+void Shader::Set(const char *name, const Matrix4 &value)
+{
+    glUniformMatrix4fv(GetUniformLocation(name), 1, false, glm::value_ptr(value));
 }

@@ -18,9 +18,11 @@ add_dependencies(voxian copy_assets)
 add_subdirectory("Deps/glad")
 find_package(glfw3 REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(glm REQUIRED)
 
 target_link_libraries(voxian PRIVATE
     glfw
     glad
     spdlog::spdlog
+    glm::glm
 )
