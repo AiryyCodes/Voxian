@@ -1,8 +1,12 @@
 #pragma once
 
 #include "Renderer/Mesh.h"
+#include "Renderer/Shader.h"
+#include "Renderer/ShaderLibrary.h"
 #include "Window.h"
 #include <GLFW/glfw3.h>
+#include <functional>
+#include <string>
 
 class Renderer
 {
@@ -19,6 +23,20 @@ public:
 
     void Submit(const Mesh &mesh);
 
+    template <typename Func>
+    void Submit(const Mesh &mesh, const std::string &shaderName, Func &&setUniforms)
+    {
+        Shader &shader = m_Shaders.Get(shaderName);
+        shader.Bind();
+        setUniforms(shader);
+
+        glBindVertexArray(mesh.GetVAO());
+        glDrawArrays(GL_TRIANGLES, 0, mesh.GetNumVertices());
+        glBindVertexArray(0);
+    }
+
 private:
     GLFWwindow *m_WindowHandle = nullptr;
+
+    ShaderLibrary m_Shaders;
 };
