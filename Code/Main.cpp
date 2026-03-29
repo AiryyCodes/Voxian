@@ -1,7 +1,5 @@
 #include "Engine.h"
 #include "Logger.h"
-#include "Math/Matrix.h"
-#include "Math/Vector.h"
 #include "Renderer/Mesh.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
@@ -9,7 +7,6 @@
 
 #include <GLFW/glfw3.h>
 #include <cstdlib>
-#include <glm/ext/matrix_transform.hpp>
 
 int main()
 {
@@ -31,6 +28,8 @@ int main()
 
     while (engine.IsRunning())
     {
+        engine.GetInput().Update();
+
         glfwPollEvents();
 
         world.Update(0.0f);

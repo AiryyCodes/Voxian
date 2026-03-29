@@ -1,8 +1,10 @@
 #pragma once
 
-#include "Memory.h"
 #include "Renderer/Renderer.h"
+#include "Input.h"
+#include "Memory.h"
 #include "Window.h"
+
 #include <cassert>
 
 class Engine
@@ -13,13 +15,14 @@ public:
     bool IsRunning() const;
 
     Renderer &GetRenderer() { return m_Renderer; }
-
     Window &GetWindow() { return *m_Window; }
+    Input &GetInput() { return *m_Input; }
 
 private:
     Renderer m_Renderer;
 
     Scope<Window> m_Window;
+    Scope<Input> m_Input;
 };
 
 class EngineContext
@@ -28,21 +31,24 @@ public:
     static void Init(Engine *engine)
     {
         assert(engine != nullptr && "Attempted to init with null engine!");
-        assert(m_Engine == nullptr && "EngineContext already initialized!");
-        m_Engine = engine;
+        assert(s_Engine == nullptr && "EngineContext already initialized!");
+        s_Engine = engine;
     }
 
     static void Shutdown()
     {
-        m_Engine = nullptr;
+        s_Engine = nullptr;
     }
+
+    static Renderer &GetRenderer() { return Get().GetRenderer(); }
+    static Input &GetInput() { return Get().GetInput(); }
 
     static Engine &Get()
     {
-        assert(m_Engine && "EngineContext accessed after shutdown!");
-        return *m_Engine;
+        assert(s_Engine && "EngineContext accessed after shutdown!");
+        return *s_Engine;
     }
 
 private:
-    static inline Engine *m_Engine = nullptr;
+    static inline Engine *s_Engine = nullptr;
 };

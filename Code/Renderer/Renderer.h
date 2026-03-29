@@ -4,8 +4,8 @@
 #include "Renderer/Shader.h"
 #include "Renderer/ShaderLibrary.h"
 #include "Window.h"
+
 #include <GLFW/glfw3.h>
-#include <functional>
 #include <string>
 
 class Renderer

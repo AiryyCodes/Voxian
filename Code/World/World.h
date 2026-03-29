@@ -3,6 +3,7 @@
 #include "Memory.h"
 #include "Renderer/Renderer.h"
 #include "World/Entity/Entity.h"
+#include "World/Entity/Player.h"
 
 #include <type_traits>
 #include <utility>
@@ -26,6 +27,10 @@ public:
         return ref;
     }
 
+    Player *GetPlayer() { return m_Player; }
+
 private:
+    Player *m_Player = nullptr;
+
     std::vector<Scope<Entity>> m_Entities;
 };
