@@ -6,6 +6,7 @@
 void World::Init()
 {
     m_Player = &SpawnEntity<Player>();
+    SetActiveCamera(&m_Player->GetComponent<Camera>());
 
     SpawnEntity<Triangle>();
 }
@@ -20,6 +21,8 @@ void World::Update(float delta)
 
 void World::Render(Renderer &renderer)
 {
+    renderer.SetCamera(m_ActiveCamera);
+
     for (const auto &entity : m_Entities)
     {
         entity->Render(renderer);

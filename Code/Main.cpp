@@ -5,6 +5,7 @@
 #include "Renderer/Shader.h"
 #include "Util/Time.h"
 #include "World/World.h"
+#include "World/Entity/Component/Camera.h"
 
 #include <GLFW/glfw3.h>
 #include <cstdlib>
@@ -29,7 +30,14 @@ int main()
 
     while (engine.IsRunning())
     {
-        renderer.SetViewport(0, 0, engine.GetWindow().GetWidth(), engine.GetWindow().GetHeight());
+        int width = engine.GetWindow().GetWidth();
+        int height = engine.GetWindow().GetHeight();
+        renderer.SetViewport(0, 0, width, height);
+
+        if (Camera *camera = world.GetActiveCamera())
+        {
+            camera->SetAspectRatio(static_cast<float>(width) / static_cast<float>(height));
+        }
 
         Time::Update();
         engine.GetInput().Update();

@@ -8,6 +8,8 @@
 #include <GLFW/glfw3.h>
 #include <string>
 
+class Camera;
+
 class Renderer
 {
 public:
@@ -21,6 +23,9 @@ public:
     void Clear(int flags) const;
     void ClearColor(float r, float g, float b, float a) const;
     void SetViewport(int x, int y, int width, int height) const;
+
+    void SetCamera(Camera *camera) { m_ActiveCamera = camera; }
+    Camera *GetCamera() { return m_ActiveCamera; }
 
     void Submit(const Mesh &mesh);
 
@@ -38,6 +43,7 @@ public:
 
 private:
     GLFWwindow *m_WindowHandle = nullptr;
+    Camera *m_ActiveCamera = nullptr;
 
     ShaderLibrary m_Shaders;
 };

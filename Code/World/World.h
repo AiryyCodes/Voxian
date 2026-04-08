@@ -4,6 +4,7 @@
 #include "Renderer/Renderer.h"
 #include "World/Entity/Entity.h"
 #include "World/Entity/Player.h"
+#include "World/Entity/Component/Camera.h"
 
 #include <type_traits>
 #include <utility>
@@ -27,10 +28,14 @@ public:
         return ref;
     }
 
+    void SetActiveCamera(Camera *camera) { m_ActiveCamera = camera; }
+    Camera *GetActiveCamera() { return m_ActiveCamera; }
+
     Player *GetPlayer() { return m_Player; }
 
 private:
     Player *m_Player = nullptr;
+    Camera *m_ActiveCamera = nullptr;
 
     std::vector<Scope<Entity>> m_Entities;
 };

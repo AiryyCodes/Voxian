@@ -2,15 +2,17 @@
 #include "Engine.h"
 #include "Input.h"
 #include "World/Entity/Component/Transform.h"
+#include "World/Entity/Component/Camera.h"
 #include "World/Entity/Entity.h"
 
 Player::Player()
     : Entity("Player")
 {
     auto &transform = AddComponent<Transform>();
-    transform.Position = Vector3f(0.0f, 0.0f, 0.0f);
+    transform.Position = Vector3f(0.0f, 0.0f, 3.0f); // Move back a bit
 
     AddComponent<PlayerInput>();
+    AddComponent<Camera>();
 }
 
 void PlayerInput::OnUpdate(float delta)

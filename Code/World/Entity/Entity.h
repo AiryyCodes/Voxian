@@ -40,6 +40,13 @@ public:
     }
 
     template <typename T>
+    const T &GetComponent() const
+    {
+        assert(HasComponent<T>() && "Entity does not have this component!");
+        return static_cast<T &>(*m_Components.at(typeid(T).hash_code()));
+    }
+
+    template <typename T>
     bool HasComponent() const
     {
         return m_Components.contains(typeid(T).hash_code());

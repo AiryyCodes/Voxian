@@ -4,6 +4,7 @@
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
 #include "World/Entity/Component/Transform.h"
+#include "World/Entity/Component/Camera.h"
 #include "World/Entity/Entity.h"
 #include "World/Entity/Component/Component.h"
 #include <string>
@@ -19,6 +20,11 @@ struct MeshRenderer : public Component
         auto &transform = GetOwner().GetComponent<Transform>();
         renderer.Submit(m_Mesh, m_Shader, [&](Shader &shader)
                         {
+                            if (Camera *camera = renderer.GetCamera())
+                            {
+                                shader.Set("u_View", camera->GetViewMatrix());
+                                shader.Set("u_Projection", camera->GetProjectionMatrix());
+                            }
                             shader.Set("u_Transform", transform.GetMatrix());
                             // This comment will live here until i add more uniforms (for formattings sake)
                         });

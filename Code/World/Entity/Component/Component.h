@@ -19,6 +19,7 @@ public:
     virtual void OnRender(Renderer &renderer) {}
 
     Entity &GetOwner() { return *m_Owner; }
+    const Entity &GetOwner() const { return *m_Owner; }
 
 private:
     friend class Entity;
