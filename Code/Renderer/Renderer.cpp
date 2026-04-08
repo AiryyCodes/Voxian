@@ -29,6 +29,7 @@ bool Renderer::Init(const Window &window)
     LOG_INFO("Loaded OpenGL {}.{}", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_DEPTH_TEST);
 
     m_Shaders.Init();
 

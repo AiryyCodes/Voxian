@@ -48,6 +48,30 @@ bool Input::IsKeyJustReleased(int key) const
     return !m_Keys[key].Current && m_Keys[key].Previous;
 }
 
+float Input::GetMouseX() const
+{
+    double x, y;
+    glfwGetCursorPos(m_Window->GetHandle(), &x, &y);
+    return static_cast<float>(x);
+}
+
+float Input::GetMouseY() const
+{
+    double x, y;
+    glfwGetCursorPos(m_Window->GetHandle(), &x, &y);
+    return static_cast<float>(y);
+}
+
+void Input::SetCursorMode(int mode) const
+{
+    glfwSetInputMode(m_Window->GetHandle(), GLFW_CURSOR, mode);
+}
+
+bool Input::IsCursorLocked() const
+{
+    return glfwGetInputMode(m_Window->GetHandle(), GLFW_CURSOR) == GLFW_CURSOR_DISABLED;
+}
+
 Input *Input::Get(GLFWwindow *window)
 {
     return static_cast<Input *>(glfwGetWindowUserPointer(window));

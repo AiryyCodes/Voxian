@@ -8,8 +8,21 @@
 Matrix4 Camera::GetViewMatrix() const
 {
     auto &transform = GetOwner().GetComponent<Transform>();
-    Matrix4 viewMatrix = transform.GetMatrix();
-    return glm::inverse(viewMatrix);
+
+    Matrix4 view(1.0f);
+
+    // Apply rotations: yaw from player, pitch from camera
+    float yaw = glm::radians(transform.Rotation.y);
+    float pitch = glm::radians(m_Pitch);
+
+    // Rotate around the X axis for pitch, then around the Y axis for yaw
+    view = glm::rotate(view, -pitch, Vector3f(1.0f, 0.0f, 0.0f));
+    view = glm::rotate(view, -yaw, Vector3f(0.0f, 1.0f, 0.0f));
+
+    // Translate to camera position
+    view = glm::translate(view, -transform.Position);
+
+    return view;
 }
 
 void Camera::UpdateProjectionMatrix()

@@ -18,6 +18,12 @@ public:
     bool IsKeyJustDown(int key) const;
     bool IsKeyJustReleased(int key) const;
 
+    float GetMouseX() const;
+    float GetMouseY() const;
+
+    void SetCursorMode(int mode) const;
+    bool IsCursorLocked() const;
+
 private:
     static Input *Get(GLFWwindow *window);
 

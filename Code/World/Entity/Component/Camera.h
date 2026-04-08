@@ -41,6 +41,9 @@ public:
     float GetNearPlane() const { return m_NearPlane; }
     float GetFarPlane() const { return m_FarPlane; }
 
+    void SetPitch(float pitch) { m_Pitch = pitch; }
+    float GetPitch() const { return m_Pitch; }
+
     Matrix4 GetViewMatrix() const;
     Matrix4 GetProjectionMatrix() const { return m_ProjectionMatrix; }
 
@@ -52,6 +55,7 @@ private:
     float m_AspectRatio;
     float m_NearPlane;
     float m_FarPlane;
+    float m_Pitch = 0.0f; // Vertical rotation in degrees
 
     Matrix4 m_ProjectionMatrix;
 };
