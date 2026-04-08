@@ -28,6 +28,8 @@ int main()
 
     while (engine.IsRunning())
     {
+        renderer.SetViewport(0, 0, engine.GetWindow().GetWidth(), engine.GetWindow().GetHeight());
+
         engine.GetInput().Update();
 
         glfwPollEvents();

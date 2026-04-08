@@ -20,6 +20,7 @@ public:
 
     void Clear(int flags) const;
     void ClearColor(float r, float g, float b, float a) const;
+    void SetViewport(int x, int y, int width, int height) const;
 
     void Submit(const Mesh &mesh);
 

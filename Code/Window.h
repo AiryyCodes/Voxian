@@ -10,6 +10,9 @@ public:
 
     bool IsClosing() const { return glfwWindowShouldClose(m_Handle); }
 
+    int GetWidth() const;
+    int GetHeight() const;
+
     GLFWwindow *GetHandle() const { return m_Handle; }
 
 private:

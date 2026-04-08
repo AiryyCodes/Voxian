@@ -55,6 +55,11 @@ void Renderer::ClearColor(float r, float g, float b, float a) const
     glClearColor(r, g, b, a);
 }
 
+void Renderer::SetViewport(int x, int y, int width, int height) const
+{
+    glViewport(x, y, width, height);
+}
+
 void Renderer::Submit(const Mesh &mesh)
 {
     glBindVertexArray(mesh.GetVAO());

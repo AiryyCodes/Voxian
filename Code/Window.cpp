@@ -15,3 +15,17 @@ Window::Window(const std::string &title, int width, int height)
         return;
     }
 }
+
+int Window::GetWidth() const
+{
+    int width, height;
+    glfwGetFramebufferSize(m_Handle, &width, &height);
+    return width;
+}
+
+int Window::GetHeight() const
+{
+    int width, height;
+    glfwGetFramebufferSize(m_Handle, &width, &height);
+    return height;
+}
