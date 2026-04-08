@@ -11,7 +11,7 @@ Player::Player()
     : Entity("Player")
 {
     auto &transform = AddComponent<Transform>();
-    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_SIZE + 4.0f, CHUNK_SIZE * 2); // Start in the middle of the chunk, slightly above ground
+    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_HEIGHT + 4.0f, CHUNK_SIZE * 2);
 
     Input &input = EngineContext::GetInput();
     input.SetCursorMode(GLFW_CURSOR_DISABLED);

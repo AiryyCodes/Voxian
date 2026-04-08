@@ -21,7 +21,7 @@ public:
         : m_Value(value) {}
 
     Direction FromIndex(int index);
-    Vector3f ToVector() const;
+    Vector3i ToVector() const;
 
     Value GetValue() const { return m_Value; }
     static std::vector<Direction> GetAllDirections()

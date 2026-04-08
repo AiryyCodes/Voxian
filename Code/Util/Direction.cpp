@@ -32,24 +32,24 @@ Direction Direction::FromIndex(int index)
     }
 }
 
-Vector3f Direction::ToVector() const
+Vector3i Direction::ToVector() const
 {
     switch (m_Value)
     {
     case Value::Up:
-        return Vector3f(0.0f, 1.0f, 0.0f);
+        return Vector3i(0, 1, 0);
     case Value::Down:
-        return Vector3f(0.0f, -1.0f, 0.0f);
+        return Vector3i(0, -1, 0);
     case Value::Left:
-        return Vector3f(-1.0f, 0.0f, 0.0f);
+        return Vector3i(-1, 0, 0);
     case Value::Right:
-        return Vector3f(1.0f, 0.0f, 0.0f);
+        return Vector3i(1, 0, 0);
     case Value::Forward:
-        return Vector3f(0.0f, 0.0f, 1.0f);
+        return Vector3i(0, 0, 1);
     case Value::Backward:
-        return Vector3f(0.0f, 0.0f, -1.0f);
+        return Vector3i(0, 0, -1);
     default:
         static_assert("Invalid direction value");
-        return Vector3f(0.0f); // Default case to silence warnings
+        return Vector3i(0, 0, 0); // Default case to silence warnings
     }
 }

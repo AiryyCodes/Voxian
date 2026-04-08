@@ -1,5 +1,4 @@
 #include "Renderer/Mesh.h"
-#include "Logger.h"
 
 #include <glad/gl.h>
 

@@ -2,7 +2,6 @@
 
 #include "Math/Vector.h"
 #include "World/Entity/Chunk.h"
-#include "Renderer/Mesh.h"
 #include "World/Entity/Component/Component.h"
 #include <vector>
 
