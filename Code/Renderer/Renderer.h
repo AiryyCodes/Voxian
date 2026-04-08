@@ -36,9 +36,7 @@ public:
         shader.Bind();
         setUniforms(shader);
 
-        glBindVertexArray(mesh.GetVAO());
-        glDrawArrays(GL_TRIANGLES, 0, mesh.GetNumVertices());
-        glBindVertexArray(0);
+        Submit(mesh);
     }
 
 private:

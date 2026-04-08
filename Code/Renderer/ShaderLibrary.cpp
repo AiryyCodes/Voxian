@@ -9,6 +9,7 @@
 void ShaderLibrary::Init()
 {
     AddShader(Shaders::Main, "Assets/Shaders/main");
+    AddShader(Shaders::Chunk, "Assets/Shaders/chunk");
 }
 
 Shader &ShaderLibrary::Get(const std::string &name)

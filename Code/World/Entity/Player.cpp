@@ -1,4 +1,5 @@
 #include "World/Entity/Player.h"
+#include "Chunk.h"
 #include "Engine.h"
 #include "Input.h"
 #include "World/Entity/Component/Transform.h"
@@ -10,7 +11,7 @@ Player::Player()
     : Entity("Player")
 {
     auto &transform = AddComponent<Transform>();
-    transform.Position = Vector3f(0.0f, 0.0f, 2.5f);
+    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_SIZE + 4.0f, CHUNK_SIZE * 2); // Start in the middle of the chunk, slightly above ground
 
     Input &input = EngineContext::GetInput();
     input.SetCursorMode(GLFW_CURSOR_DISABLED);

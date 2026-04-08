@@ -1,4 +1,5 @@
 #include "Renderer/Mesh.h"
+#include "Logger.h"
 
 #include <glad/gl.h>
 
@@ -12,6 +13,8 @@ Mesh::~Mesh()
 {
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
+    if (m_EBO)
+        glDeleteBuffers(1, &m_EBO);
 }
 
 void Mesh::Init(const void *data, size_t dataSize, std::initializer_list<AttribElement> layout, unsigned int usage)
@@ -37,5 +40,21 @@ void Mesh::Init(const void *data, size_t dataSize, std::initializer_list<AttribE
     }
 
     m_NumVertices = (int)(dataSize / stride);
+    glBindVertexArray(0);
+}
+
+void Mesh::Init(const void *data, size_t dataSize, const unsigned int *indices, size_t numIndices, std::initializer_list<AttribElement> layout, unsigned int usage)
+{
+    Init(data, dataSize, layout, usage);
+
+    glBindVertexArray(m_VAO);
+
+    // Create EBO for indices
+    glGenBuffers(1, &m_EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, numIndices * sizeof(unsigned int), indices, usage);
+
+    m_NumIndices = (int)numIndices;
+
     glBindVertexArray(0);
 }

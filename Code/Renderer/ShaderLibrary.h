@@ -9,7 +9,8 @@
 namespace Shaders
 {
 constexpr const char *Main = "main";
-}
+constexpr const char *Chunk = "chunk";
+} // namespace Shaders
 
 class ShaderLibrary
 {

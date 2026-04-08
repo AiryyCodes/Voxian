@@ -64,6 +64,13 @@ void Renderer::SetViewport(int x, int y, int width, int height) const
 void Renderer::Submit(const Mesh &mesh)
 {
     glBindVertexArray(mesh.GetVAO());
-    glDrawArrays(GL_TRIANGLES, 0, mesh.GetNumVertices());
+    if (mesh.HasIndices())
+    {
+        glDrawElements(GL_TRIANGLES, mesh.GetNumIndices(), GL_UNSIGNED_INT, nullptr);
+    }
+    else
+    {
+        glDrawArrays(GL_TRIANGLES, 0, mesh.GetNumVertices());
+    }
     glBindVertexArray(0);
 }
