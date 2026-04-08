@@ -3,6 +3,7 @@
 #include "Renderer/Mesh.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
+#include "Util/Time.h"
 #include "World/World.h"
 
 #include <GLFW/glfw3.h>
@@ -30,11 +31,12 @@ int main()
     {
         renderer.SetViewport(0, 0, engine.GetWindow().GetWidth(), engine.GetWindow().GetHeight());
 
+        Time::Update();
         engine.GetInput().Update();
 
         glfwPollEvents();
 
-        world.Update(0.0f);
+        world.Update(Time::GetDeltaTime());
 
         renderer.Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         renderer.ClearColor(0.4f, 0.7f, 0.9f, 1.0f);

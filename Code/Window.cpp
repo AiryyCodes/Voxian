@@ -14,6 +14,9 @@ Window::Window(const std::string &title, int width, int height)
         LOG_ERROR("Failed to create window!");
         return;
     }
+
+    // Enable V-Sync
+    glfwSwapInterval(1);
 }
 
 int Window::GetWidth() const

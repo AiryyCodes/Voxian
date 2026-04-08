@@ -1,10 +1,8 @@
 #include "World/Entity/Player.h"
 #include "Engine.h"
 #include "Input.h"
-#include "Logger.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Entity.h"
-#include <GLFW/glfw3.h>
 
 Player::Player()
     : Entity("Player")
@@ -32,5 +30,5 @@ void PlayerInput::OnUpdate(float delta)
         direction.x += 1.f;
 
     if (glm::length(direction) > 0.f)
-        transform.Position += glm::normalize(direction) * m_Speed;
+        transform.Position += glm::normalize(direction) * m_Speed * delta;
 }
