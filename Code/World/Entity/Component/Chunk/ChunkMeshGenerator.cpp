@@ -1,9 +1,11 @@
 #include "ChunkMeshGenerator.h"
+#include "Engine.h"
+#include "Logger.h"
 #include "Math/Vector.h"
-#include "Renderer/Mesh.h"
 #include "Util/Direction.h"
 #include "World/Entity/Chunk.h"
 
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 
@@ -57,13 +59,27 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
                     blockPos + Vector3i(blockSize.x, blockSize.y, blockSize.z),
                 };
 
-                if (!chunk.IsBlockSolid(x, y, z))
+                uint16_t blockId = chunk.GetBlock(x, y, z);
+                if (blockId == 0)
+                    continue; // Skip air blocks
+
+                const Block *block = EngineContext::GetBlockRegistry().GetBlockById(blockId);
+                if (!block)
+                    continue;
+
+                if (block->GetProperties().IsAir())
                     continue; // Skip air blocks
 
                 for (const auto &direction : Direction::GetAllDirections())
                 {
                     Vector3i relativePos = blockPos + direction.ToVector();
-                    bool isFaceVisible = !chunk.IsBlockSolid(relativePos.x, relativePos.y, relativePos.z);
+                    uint16_t neighborId = chunk.GetBlock(relativePos.x, relativePos.y, relativePos.z);
+
+                    const Block *neighborBlock = EngineContext::GetBlockRegistry().GetBlockById(neighborId);
+                    if (!neighborBlock)
+                        continue;
+
+                    bool isFaceVisible = (neighborId == 0) || neighborBlock->GetProperties().IsAir();
 
                     if (!isFaceVisible)
                         continue;

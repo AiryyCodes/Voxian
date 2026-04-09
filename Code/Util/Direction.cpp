@@ -1,5 +1,6 @@
 #include "Direction.h"
 #include "Math/Vector.h"
+#include <string>
 
 const Direction Direction::Up = Direction(Direction::Value::Up);
 const Direction Direction::Down = Direction(Direction::Value::Down);
@@ -51,5 +52,27 @@ Vector3i Direction::ToVector() const
     default:
         static_assert("Invalid direction value");
         return Vector3i(0, 0, 0); // Default case to silence warnings
+    }
+}
+
+std::string Direction::ToString(const Direction &direction)
+{
+    switch (direction.GetValue())
+    {
+    case Value::Up:
+        return "Up";
+    case Value::Down:
+        return "Down";
+    case Value::Left:
+        return "Left";
+    case Value::Right:
+        return "Right";
+    case Value::Forward:
+        return "Forward";
+    case Value::Backward:
+        return "Backward";
+    default:
+        static_assert("Invalid direction value");
+        return "Unknown"; // Default case to silence warnings
     }
 }

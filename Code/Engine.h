@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "Memory.h"
 #include "Window.h"
+#include "World/Block/BlockRegistry.h"
 
 #include <cassert>
 
@@ -18,11 +19,15 @@ public:
     Window &GetWindow() { return *m_Window; }
     Input &GetInput() { return *m_Input; }
 
+    BlockRegistry &GetBlockRegistry() { return m_BlockRegistry; }
+
 private:
     Renderer m_Renderer;
 
     Scope<Window> m_Window;
     Scope<Input> m_Input;
+
+    BlockRegistry m_BlockRegistry;
 };
 
 class EngineContext
@@ -41,7 +46,10 @@ public:
     }
 
     static Renderer &GetRenderer() { return Get().GetRenderer(); }
+    static Window &GetWindow() { return Get().GetWindow(); }
     static Input &GetInput() { return Get().GetInput(); }
+
+    static BlockRegistry &GetBlockRegistry() { return Get().GetBlockRegistry(); }
 
     static Engine &Get()
     {

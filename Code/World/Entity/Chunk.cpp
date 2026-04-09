@@ -31,23 +31,21 @@ Chunk::~Chunk()
 {
 }
 
-bool Chunk::GetBlock(int x, int y, int z) const
+uint16_t Chunk::GetBlock(int x, int y, int z) const
 {
-    if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_SIZE)
-        return false; // Out of bounds, treat as air
-
-    return m_Blocks[x][y][z];
+    // Bounds check against CHUNK_SIZE, not PADDED_SIZE
+    if (x < 0 || x >= CHUNK_SIZE ||
+        y < 0 || y >= CHUNK_HEIGHT ||
+        z < 0 || z >= CHUNK_SIZE)
+        return 0;
+    return m_Blocks.GetId(x + 1, y + 1, z + 1); // +1 offset into padded array
 }
 
-void Chunk::SetBlock(int x, int y, int z, bool solid)
+void Chunk::SetBlock(int x, int y, int z, uint16_t id)
 {
-    if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_SIZE)
-        return; // Out of bounds, ignore
-
-    m_Blocks[x][y][z] = solid;
-}
-
-bool Chunk::IsBlockSolid(int x, int y, int z) const
-{
-    return GetBlock(x, y, z);
+    if (x < 0 || x >= CHUNK_SIZE ||
+        y < 0 || y >= CHUNK_HEIGHT ||
+        z < 0 || z >= CHUNK_SIZE)
+        return;
+    m_Blocks.SetId(x + 1, y + 1, z + 1, id);
 }

@@ -2,6 +2,7 @@
 
 #include "Math/Vector.h"
 
+#include <string>
 #include <vector>
 
 class Direction
@@ -22,6 +23,7 @@ public:
 
     Direction FromIndex(int index);
     Vector3i ToVector() const;
+    static std::string ToString(const Direction &direction);
 
     Value GetValue() const { return m_Value; }
     static std::vector<Direction> GetAllDirections()

@@ -4,6 +4,7 @@
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
 #include "Util/Time.h"
+#include "World/Block/Blocks.h"
 #include "World/World.h"
 #include "World/Entity/Component/Camera.h"
 
@@ -24,6 +25,8 @@ int main()
     EngineContext::Init(&engine);
 
     Renderer &renderer = engine.GetRenderer();
+
+    Blocks::RegisterAll(engine.GetBlockRegistry());
 
     World world;
     world.Init();
