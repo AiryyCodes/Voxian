@@ -9,7 +9,7 @@ public:
     void OnUpdate(float delta) override;
 
 private:
-    float m_Speed = 2.5f;
+    float m_Speed = 10.0f;
 };
 
 class Player : public Entity

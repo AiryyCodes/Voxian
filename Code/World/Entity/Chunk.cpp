@@ -1,11 +1,15 @@
 #include "Chunk.h"
 #include "Component/Chunk/ChunkGenerator.h"
 #include "Component/Chunk/ChunkMeshGenerator.h"
+#include "Logger.h"
 #include "Math/Vector.h"
 #include "Renderer/ShaderLibrary.h"
+#include "Renderer/Texture.h"
 #include "World/Entity/Component/MeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Entity.h"
+
+#include <stb/stb_image.h>
 
 Chunk::Chunk(Vector2i position)
     : Entity("Chunk" + std::to_string(position.x) + "," + std::to_string(position.y)),
@@ -23,8 +27,21 @@ Chunk::Chunk(Vector2i position)
     MeshRenderer &meshRenderer = AddComponent<MeshRenderer>(Shaders::Chunk);
     meshRenderer.GetMesh().Init(meshData.Vertices.data(), meshData.Vertices.size() * sizeof(ChunkVertex), meshData.Indices.data(), meshData.Indices.size(), {
                                                                                                                                                                 {AttribType::Float3, false}, // Position
-                                                                                                                                                                {AttribType::Float3, false}  // Normal
+                                                                                                                                                                {AttribType::Float3, false}, // Normal
+                                                                                                                                                                {AttribType::Float2, false}  // UV
                                                                                                                                                             });
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    unsigned char *data = stbi_load("Assets/Textures/Block/grass_block.png", &width, &height, &channels, 0);
+
+    LOG_INFO("Loaded texture with width: {}, height: {}, channels: {}", width, height, channels);
+
+    int format = (channels == 4) ? GL_RGBA : GL_RGB;
+
+    meshRenderer.GetMesh().SetTexture(width, height, data, format);
+
+    stbi_image_free(data);
 }
 
 Chunk::~Chunk()

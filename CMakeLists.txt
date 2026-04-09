@@ -17,6 +17,7 @@ add_custom_target(copy_assets
 add_dependencies(voxian copy_assets)
 
 add_subdirectory("Deps/glad")
+add_subdirectory("Deps/stb")
 find_package(glfw3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(glm REQUIRED)
@@ -26,4 +27,5 @@ target_link_libraries(voxian PRIVATE
     glad
     spdlog::spdlog
     glm::glm
+    stb
 )

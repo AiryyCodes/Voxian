@@ -12,6 +12,7 @@
 struct FaceIndices
 {
     int v0, v1, v2, v3;
+    Vector2f UVs[4];
 };
 
 ChunkMeshGenerator::ChunkMeshGenerator(Chunk &chunk)
@@ -33,12 +34,12 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
     Chunk &chunk = static_cast<Chunk &>(GetOwner());
 
     static const std::unordered_map<Direction, FaceIndices> faceIndicesMap = {
-        {Direction::Up, {2, 6, 7, 3}},
-        {Direction::Down, {1, 5, 4, 0}},
-        {Direction::Left, {0, 2, 3, 1}},
-        {Direction::Right, {4, 5, 7, 6}},
-        {Direction::Forward, {1, 3, 7, 5}},
-        {Direction::Backward, {4, 6, 2, 0}}};
+        {Direction::Up, {2, 6, 7, 3, {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}}},
+        {Direction::Down, {1, 5, 4, 0, {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}}},
+        {Direction::Left, {0, 2, 3, 1, {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}}},
+        {Direction::Right, {4, 5, 7, 6, {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}}},
+        {Direction::Forward, {1, 3, 7, 5, {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}}},
+        {Direction::Backward, {4, 6, 2, 0, {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}}}};
 
     for (int x = 0; x < CHUNK_SIZE; ++x)
     {
@@ -90,21 +91,25 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
                     ChunkVertex v0;
                     v0.Position = points[faceIndices.v0];
                     v0.Normal = direction.ToVector();
+                    v0.UV = faceIndices.UVs[0];
                     meshData.Vertices.push_back(v0);
 
                     ChunkVertex v1;
                     v1.Position = points[faceIndices.v1];
                     v1.Normal = direction.ToVector();
+                    v1.UV = faceIndices.UVs[1];
                     meshData.Vertices.push_back(v1);
 
                     ChunkVertex v2;
                     v2.Position = points[faceIndices.v2];
                     v2.Normal = direction.ToVector();
+                    v2.UV = faceIndices.UVs[2];
                     meshData.Vertices.push_back(v2);
 
                     ChunkVertex v3;
                     v3.Position = points[faceIndices.v3];
                     v3.Normal = direction.ToVector();
+                    v3.UV = faceIndices.UVs[3];
                     meshData.Vertices.push_back(v3);
 
                     meshData.Indices.push_back(baseIndex);

@@ -26,7 +26,12 @@ struct MeshRenderer : public Component
                                 shader.Set("u_Projection", camera->GetProjectionMatrix());
                             }
                             shader.Set("u_Transform", transform.GetMatrix());
-                            // This comment will live here until i add more uniforms (for formattings sake)
+
+                            if (m_Mesh.GetTexture())
+                            {
+                                shader.Set("u_Texture", 0); // Texture unit 0
+                            }
+                            // This comment will live here forever (for formattings sake until i fix the .clang-format file to not mess with my formatting in lambdas)
                         });
     }
 

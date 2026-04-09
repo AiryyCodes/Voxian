@@ -12,10 +12,7 @@ void ChunkGenerator::Generate()
         {
             for (int y = 0; y < BlockData::PADDED_HEIGHT; ++y)
             {
-                if (y == BlockData::PADDED_HEIGHT - 4)
-                    chunk.SetBlock(x, y, z, Blocks::AIR); // Top layer is air
-                else
-                    chunk.SetBlock(x, y, z, Blocks::GRASS_BLOCK); // Placeholder: make every block a grass block for testing
+                chunk.SetBlock(x, y, z, Blocks::GRASS_BLOCK); // Placeholder: make every block a grass block for testing
             }
         }
     }

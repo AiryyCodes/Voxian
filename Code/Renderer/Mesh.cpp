@@ -57,3 +57,9 @@ void Mesh::Init(const void *data, size_t dataSize, const unsigned int *indices, 
 
     glBindVertexArray(0);
 }
+
+void Mesh::SetTexture(int width, int height, const void *data, int format)
+{
+    m_Texture = std::make_unique<Texture>();
+    m_Texture->Init(width, height, data, format);
+}
