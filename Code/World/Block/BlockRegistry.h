@@ -2,7 +2,7 @@
 
 #include "Block.h"
 #include "BlockData.h"
-#include "Memory.h"
+#include "Util/Memory.h"
 
 #include <cstdint>
 #include <string>

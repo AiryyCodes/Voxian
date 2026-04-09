@@ -2,7 +2,7 @@
 
 #include "Renderer/Renderer.h"
 #include "Input.h"
-#include "Memory.h"
+#include "Util/Memory.h"
 #include "Window.h"
 #include "World/Block/BlockRegistry.h"
 

@@ -2,7 +2,7 @@
 #include "BlockData.h"
 #include "BlockProperties.h"
 #include "Logger.h"
-#include "Memory.h"
+#include "Util/Memory.h"
 #include "World/Block/Block.h"
 
 #include <algorithm>
