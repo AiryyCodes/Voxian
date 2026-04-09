@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Math/Vector.h"
 #include "Renderer/ShaderLibrary.h"
-#include "Renderer/Texture.h"
 #include "World/Entity/Component/MeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Entity.h"
@@ -35,13 +34,20 @@ Chunk::Chunk(Vector2i position)
     int channels = 0;
     unsigned char *data = stbi_load("Assets/Textures/Block/grass_block.png", &width, &height, &channels, 0);
 
-    LOG_INFO("Loaded texture with width: {}, height: {}, channels: {}", width, height, channels);
+    if (data)
+    {
+        LOG_INFO("Loaded texture with width: {}, height: {}, channels: {}", width, height, channels);
 
-    int format = (channels == 4) ? GL_RGBA : GL_RGB;
+        int format = (channels == 4) ? GL_RGBA : GL_RGB;
 
-    meshRenderer.GetMesh().SetTexture(width, height, data, format);
+        meshRenderer.GetMesh().SetTexture(width, height, data, format);
 
-    stbi_image_free(data);
+        stbi_image_free(data);
+    }
+    else
+    {
+        LOG_ERROR("Failed to load texture Assets/Textures/Block/grass_block.png");
+    }
 }
 
 Chunk::~Chunk()

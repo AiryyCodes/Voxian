@@ -1,10 +1,13 @@
 #include "ChunkGenerator.h"
+#include "Logger.h"
 #include "World/Entity/Chunk.h"
 #include "World/Block/Blocks.h"
 
 void ChunkGenerator::Generate()
 {
     Chunk &chunk = static_cast<Chunk &>(GetOwner());
+
+    LOG_INFO("Grass Block Id: {}", Blocks::GRASS_BLOCK);
 
     for (int x = 0; x < BlockData::PADDED_SIZE; ++x)
     {

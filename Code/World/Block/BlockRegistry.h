@@ -10,10 +10,16 @@
 class BlockRegistry
 {
 public:
-    uint16_t RegisterBlock(const std::string &name, Scope<Block> block);
+    void Init();
 
-    const Block *GetBlockByName(const std::string &name) const;
-    const Block *GetBlockById(uint16_t id) const;
+    uint16_t RegisterBlock(const std::string &id, Scope<Block> block);
+
+    const Block *GetBlockById(const std::string &id) const;
+    const Block *GetBlockByIndex(uint16_t id) const;
+    uint16_t GetBlockIndexById(const std::string &id) const;
+
+private:
+    bool IsIdRegistered(const std::string &id) const;
 
 private:
     std::unordered_map<std::string, Scope<Block>> m_Blocks;

@@ -1,6 +1,5 @@
 #include "ChunkMeshGenerator.h"
 #include "Engine.h"
-#include "Logger.h"
 #include "Math/Vector.h"
 #include "Util/Direction.h"
 #include "World/Entity/Chunk.h"
@@ -64,11 +63,11 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
                 if (blockId == 0)
                     continue; // Skip air blocks
 
-                const Block *block = EngineContext::GetBlockRegistry().GetBlockById(blockId);
+                const Block *block = EngineContext::GetBlockRegistry().GetBlockByIndex(blockId);
                 if (!block)
                     continue;
 
-                if (block->GetProperties().IsAir())
+                if (block->GetProperties().IsAir)
                     continue; // Skip air blocks
 
                 for (const auto &direction : Direction::GetAllDirections())
@@ -76,11 +75,11 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
                     Vector3i relativePos = blockPos + direction.ToVector();
                     uint16_t neighborId = chunk.GetBlock(relativePos.x, relativePos.y, relativePos.z);
 
-                    const Block *neighborBlock = EngineContext::GetBlockRegistry().GetBlockById(neighborId);
+                    const Block *neighborBlock = EngineContext::GetBlockRegistry().GetBlockByIndex(neighborId);
                     if (!neighborBlock)
                         continue;
 
-                    bool isFaceVisible = (neighborId == 0) || neighborBlock->GetProperties().IsAir();
+                    bool isFaceVisible = (neighborId == 0) || neighborBlock->GetProperties().IsAir;
 
                     if (!isFaceVisible)
                         continue;

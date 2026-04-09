@@ -8,5 +8,5 @@ namespace Blocks
 inline uint16_t AIR = 0;
 inline uint16_t GRASS_BLOCK = 0;
 
-void RegisterAll(BlockRegistry &registry);
+void AssignAll(BlockRegistry &registry);
 } // namespace Blocks

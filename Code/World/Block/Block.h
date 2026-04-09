@@ -1,27 +1,14 @@
 #pragma once
 
-class Properties
-{
-public:
-    Properties SetAir(bool isAir)
-    {
-        m_IsAir = isAir;
-        return *this;
-    }
-
-    bool IsAir() const { return m_IsAir; }
-
-private:
-    bool m_IsAir = false;
-};
+#include "World/Block/BlockProperties.h"
 
 class Block
 {
 public:
-    Block(const Properties &properties);
+    Block(const BlockProperties &properties);
 
-    const Properties &GetProperties() const { return m_Properties; }
+    const BlockProperties &GetProperties() const { return m_Properties; }
 
 public:
-    const Properties m_Properties;
+    const BlockProperties m_Properties;
 };

@@ -1,9 +1,7 @@
 #include "Blocks.h"
-#include "Block.h"
-#include "Memory.h"
 
-void Blocks::RegisterAll(BlockRegistry &registry)
+void Blocks::AssignAll(BlockRegistry &registry)
 {
-    AIR = registry.RegisterBlock("Air", CreateScope<Block>(Properties().SetAir(true)));
-    GRASS_BLOCK = registry.RegisterBlock("Grass Block", CreateScope<Block>(Properties()));
+    AIR = registry.GetBlockIndexById("air");
+    GRASS_BLOCK = registry.GetBlockIndexById("grass_block");
 }

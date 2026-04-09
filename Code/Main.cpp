@@ -26,7 +26,8 @@ int main()
 
     Renderer &renderer = engine.GetRenderer();
 
-    Blocks::RegisterAll(engine.GetBlockRegistry());
+    engine.GetBlockRegistry().Init();
+    Blocks::AssignAll(engine.GetBlockRegistry());
 
     World world;
     world.Init();

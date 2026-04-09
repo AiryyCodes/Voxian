@@ -1,6 +1,7 @@
 #include "Block.h"
+#include "BlockProperties.h"
 
-Block::Block(const Properties &properties)
+Block::Block(const BlockProperties &properties)
     : m_Properties(properties)
 {
 }
