@@ -1,6 +1,7 @@
 {
     "Name": "Grass Block",
     "Id": "grass_block",
+    "Texture": "Block/grass_block",
     "Properties": {
     }
 }

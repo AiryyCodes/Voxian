@@ -9,14 +9,14 @@
 #define CHUNK_SIZE 16
 #define CHUNK_HEIGHT 256
 
-struct BlockData
+struct ChunkBlockData
 {
     static constexpr int PADDED_SIZE = CHUNK_SIZE + 2;
     static constexpr int PADDED_HEIGHT = CHUNK_HEIGHT + 2;
 
     std::vector<uint16_t> Indices;
 
-    BlockData()
+    ChunkBlockData()
     {
         Indices.resize(PADDED_SIZE * PADDED_HEIGHT * PADDED_SIZE);
     }
@@ -54,5 +54,5 @@ public:
 private:
     Vector2i m_Position;
 
-    BlockData m_Blocks;
+    ChunkBlockData m_Blocks;
 };

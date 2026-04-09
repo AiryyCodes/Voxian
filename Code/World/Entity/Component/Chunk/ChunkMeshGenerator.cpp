@@ -91,24 +91,28 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
                     v0.Position = points[faceIndices.v0];
                     v0.Normal = direction.ToVector();
                     v0.UV = faceIndices.UVs[0];
+                    v0.TextureIndex = blockId - 1; // Use block ID as texture index
                     meshData.Vertices.push_back(v0);
 
                     ChunkVertex v1;
                     v1.Position = points[faceIndices.v1];
                     v1.Normal = direction.ToVector();
                     v1.UV = faceIndices.UVs[1];
+                    v1.TextureIndex = blockId - 1; // Use block ID as texture index
                     meshData.Vertices.push_back(v1);
 
                     ChunkVertex v2;
                     v2.Position = points[faceIndices.v2];
                     v2.Normal = direction.ToVector();
                     v2.UV = faceIndices.UVs[2];
+                    v2.TextureIndex = blockId - 1; // Use block ID as texture index
                     meshData.Vertices.push_back(v2);
 
                     ChunkVertex v3;
                     v3.Position = points[faceIndices.v3];
                     v3.Normal = direction.ToVector();
                     v3.UV = faceIndices.UVs[3];
+                    v3.TextureIndex = blockId - 1; // Use block ID as texture index
                     meshData.Vertices.push_back(v3);
 
                     meshData.Indices.push_back(baseIndex);

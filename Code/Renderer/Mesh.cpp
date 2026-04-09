@@ -32,8 +32,18 @@ void Mesh::Init(const void *data, size_t dataSize, std::initializer_list<AttribE
     {
         auto info = AttribInfo::FromType(element.Type);
         glEnableVertexAttribArray(index);
-        glVertexAttribPointer(index, info.Components, info.GlType,
-                              element.Normalized, stride, (void *)offset);
+        switch (element.Type)
+        {
+        case AttribType::Float:
+        case AttribType::Float2:
+        case AttribType::Float3:
+            glVertexAttribPointer(index, info.Components, info.GlType,
+                                  element.Normalized, stride, (void *)offset);
+            break;
+        case AttribType::Int:
+            glVertexAttribIPointer(index, info.Components, info.GlType, stride, (void *)offset);
+            break;
+        }
         offset += info.Size;
         index++;
     }
@@ -62,4 +72,10 @@ void Mesh::SetTexture(int width, int height, const void *data, int format)
 {
     m_Texture = std::make_unique<Texture>();
     m_Texture->Init(width, height, data, format);
+}
+
+void Mesh::SetTexture(int width, int height, int layers, const std::vector<std::string> &fileNames, int format)
+{
+    m_Texture = std::make_unique<TextureArray2D>();
+    m_Texture->Init(width, height, layers, fileNames, format);
 }

@@ -4,6 +4,7 @@
 
 enum class AttribType
 {
+    Int,
     Float,
     Float2,
     Float3,
@@ -25,6 +26,8 @@ struct AttribInfo
     {
         switch (type)
         {
+        case AttribType::Int:
+            return {GL_INT, 1, 4};
         case AttribType::Float:
             return {GL_FLOAT, 1, 4};
         case AttribType::Float2:

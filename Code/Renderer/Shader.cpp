@@ -80,6 +80,7 @@ unsigned int Shader::GetUniformLocation(const char *name)
         return it->second;
 
     int location = glGetUniformLocation(m_ProgramId, name);
+
     assert(location != -1 && "Uniform not found");
     m_UniformCache[name] = location;
 

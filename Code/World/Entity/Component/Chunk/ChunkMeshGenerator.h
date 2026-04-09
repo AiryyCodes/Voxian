@@ -10,6 +10,7 @@ struct ChunkVertex
     Vector3f Position;
     Vector3f Normal;
     Vector2f UV;
+    int TextureIndex;
 };
 
 struct ChunkMeshData

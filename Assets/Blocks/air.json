@@ -1,6 +1,7 @@
 {
     "Name": "Air",
     "Id": "air",
+    "Texture": "Block/air",
     "Properties": {
         "IsAir": true
     }

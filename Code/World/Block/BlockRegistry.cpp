@@ -13,6 +13,7 @@
 #include <glaze/core/read.hpp>
 #include <glaze/json/read.hpp>
 #include <string>
+#include <vector>
 
 void BlockRegistry::Init()
 {
@@ -50,19 +51,22 @@ void BlockRegistry::Init()
                 continue;
             }
 
-            if (IsIdRegistered(blockData->Id))
-            {
-                LOG_ERROR("Duplicate block ID '{}' found in file: {}. Skipping registration.", blockData->Id, entry.path().string());
-                continue;
-            }
+            blockData->ResolveTextures();
 
             RegisterBlock(blockData->Id, CreateScope<Block>(blockData->Properties));
+            m_BlockDataMap[blockData->Id] = *blockData;
         }
     }
 }
 
 uint16_t BlockRegistry::RegisterBlock(const std::string &id, Scope<Block> block)
 {
+    if (IsIdRegistered(id))
+    {
+        LOG_ERROR("Block ID '{}' is already registered. Skipping registration.", id);
+        return GetBlockIndexById(id);
+    }
+
     uint16_t index = static_cast<uint16_t>(m_Blocks.size());
     m_Blocks[id] = std::move(block);
     m_IdToName[index] = id;
@@ -107,4 +111,15 @@ uint16_t BlockRegistry::GetBlockIndexById(const std::string &id) const
 bool BlockRegistry::IsIdRegistered(const std::string &id) const
 {
     return m_Blocks.contains(id);
+}
+
+std::vector<std::string> BlockRegistry::GetAllBlockTextures() const
+{
+    std::vector<std::string> textures;
+    for (const auto &[id, block] : m_BlockDataMap)
+    {
+        if (!block.Texture.empty())
+            textures.push_back(block.Texture);
+    }
+    return textures;
 }

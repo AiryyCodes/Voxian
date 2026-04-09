@@ -1,9 +1,10 @@
 #include "Chunk.h"
 #include "Component/Chunk/ChunkGenerator.h"
 #include "Component/Chunk/ChunkMeshGenerator.h"
-#include "Logger.h"
+#include "Engine.h"
 #include "Math/Vector.h"
 #include "Renderer/ShaderLibrary.h"
+#include "World/Block/BlockRegistry.h"
 #include "World/Entity/Component/MeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Entity.h"
@@ -27,27 +28,13 @@ Chunk::Chunk(Vector2i position)
     meshRenderer.GetMesh().Init(meshData.Vertices.data(), meshData.Vertices.size() * sizeof(ChunkVertex), meshData.Indices.data(), meshData.Indices.size(), {
                                                                                                                                                                 {AttribType::Float3, false}, // Position
                                                                                                                                                                 {AttribType::Float3, false}, // Normal
-                                                                                                                                                                {AttribType::Float2, false}  // UV
+                                                                                                                                                                {AttribType::Float2, false}, // UV
+                                                                                                                                                                {AttribType::Int, false}     // TextureIndex
                                                                                                                                                             });
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-    unsigned char *data = stbi_load("Assets/Textures/Block/grass_block.png", &width, &height, &channels, 0);
 
-    if (data)
-    {
-        LOG_INFO("Loaded texture with width: {}, height: {}, channels: {}", width, height, channels);
-
-        int format = (channels == 4) ? GL_RGBA : GL_RGB;
-
-        meshRenderer.GetMesh().SetTexture(width, height, data, format);
-
-        stbi_image_free(data);
-    }
-    else
-    {
-        LOG_ERROR("Failed to load texture Assets/Textures/Block/grass_block.png");
-    }
+    BlockRegistry &blockRegistry = EngineContext::GetBlockRegistry();
+    std::vector<std::string> textures = blockRegistry.GetAllBlockTextures();
+    meshRenderer.GetMesh().SetTexture(16, 16, textures.size(), textures, GL_RGB);
 }
 
 Chunk::~Chunk()

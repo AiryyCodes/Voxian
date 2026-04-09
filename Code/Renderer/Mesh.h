@@ -31,6 +31,7 @@ public:
 
     const Texture *GetTexture() const { return m_Texture.get(); }
     void SetTexture(int width, int height, const void *data, int format);
+    void SetTexture(int width, int height, int layers, const std::vector<std::string> &fileNames, int format);
 
 private:
     unsigned int m_VAO = 0;
