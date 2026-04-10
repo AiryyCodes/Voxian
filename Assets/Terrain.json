@@ -1,0 +1,18 @@
+{
+    "Frequency": 0.004,
+    "Amplitude": 0.5,
+    "Gain": 0.25,
+    "NoiseType": "OpenSimplex2",
+    "SeaLevel": 128,
+    "Layers": [
+        {
+            "Block": "grass_block",
+            "Condition": "AtSurface"
+        },
+        {
+            "Block": "stone",
+            "Condition": "BelowSurface",
+            "Priority": 1
+        }
+    ]
+}

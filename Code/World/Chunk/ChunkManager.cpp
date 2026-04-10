@@ -21,6 +21,8 @@ void ChunkManager::Init()
 
     m_ChunkTextureArray = CreateRef<TextureArray2D>();
     m_ChunkTextureArray->Init(16, 16, textures.size(), textures, GL_RGB);
+
+    m_Noise.Init();
 }
 
 void ChunkManager::Update(float delta)

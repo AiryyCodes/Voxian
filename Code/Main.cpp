@@ -29,7 +29,7 @@ int main()
     engine.GetBlockRegistry().Init();
     Blocks::AssignAll(engine.GetBlockRegistry());
 
-    World world;
+    World &world = engine.GetWorld();
     world.Init();
 
     while (engine.IsRunning())

@@ -7,9 +7,11 @@
 #include "Renderer/Texture.h"
 #include "Util/Memory.h"
 #include "World/Block/BlockRegistry.h"
+#include "World/Chunk/ChunkManager.h"
 #include "World/Entity/Component/MeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Entity.h"
+#include "World/World.h"
 
 #include <stb/stb_image.h>
 
@@ -20,8 +22,10 @@ Chunk::Chunk(Vector2i position)
     Transform &transform = AddComponent<Transform>();
     transform.Position = Vector3f(position.x * CHUNK_SIZE, 0.0f, position.y * CHUNK_SIZE);
 
+    ChunkManager &chunkManager = EngineContext::GetWorld().GetChunkManager();
+
     ChunkGenerator &generator = AddComponent<ChunkGenerator>();
-    generator.Generate();
+    generator.Generate(chunkManager.GetTerrainNoise());
 
     ChunkMeshGenerator &meshGenerator = AddComponent<ChunkMeshGenerator>(*this);
 }

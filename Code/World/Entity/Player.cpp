@@ -1,7 +1,7 @@
 #include "World/Entity/Player.h"
-#include "Chunk.h"
 #include "Engine.h"
 #include "Input.h"
+#include "World/Entity/Component/Chunk/ChunkGenerator.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Component/Camera.h"
 #include "World/Entity/Entity.h"

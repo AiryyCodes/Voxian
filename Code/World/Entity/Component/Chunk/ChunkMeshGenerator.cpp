@@ -1,5 +1,4 @@
 #include "ChunkMeshGenerator.h"
-#include "Engine.h"
 #include "Math/Vector.h"
 #include "Util/Direction.h"
 #include "World/Block/BlockProperties.h"

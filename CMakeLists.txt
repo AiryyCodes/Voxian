@@ -20,6 +20,7 @@ include(cmake/glaze.cmake)
 
 add_subdirectory("Deps/glad")
 add_subdirectory("Deps/stb")
+add_subdirectory("Deps/FastNoiseLite")
 find_package(glfw3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(glm REQUIRED)
@@ -28,6 +29,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glad
     stb
+    FastNoiseLite
     spdlog::spdlog
     glm::glm
     glaze::glaze

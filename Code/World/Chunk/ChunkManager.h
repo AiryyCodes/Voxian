@@ -4,6 +4,7 @@
 #include "Math/Vector.h"
 #include "Renderer/Texture.h"
 #include "Util/Memory.h"
+#include "World/Chunk/Terrain/TerrainNoise.h"
 #include "World/Entity/Chunk.h"
 
 #include <future>
@@ -25,6 +26,8 @@ public:
     void Init();
     void Update(float delta);
 
+    const TerrainNoise &GetTerrainNoise() const { return m_Noise; }
+
 private:
     void QueueChunk(Vector2i chunkPos);
     void PollPendingChunks();
@@ -32,6 +35,8 @@ private:
 
 private:
     static constexpr int MAX_CHUNKS_PER_FRAME = 1;
+
+    TerrainNoise m_Noise;
 
     World &m_World;
 
