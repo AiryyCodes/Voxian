@@ -24,10 +24,8 @@ Chunk::Chunk(Vector2i position)
 
     ChunkManager &chunkManager = EngineContext::GetWorld().GetChunkManager();
 
-    ChunkGenerator &generator = AddComponent<ChunkGenerator>();
-    generator.Generate(chunkManager.GetTerrainNoise());
-
-    ChunkMeshGenerator &meshGenerator = AddComponent<ChunkMeshGenerator>(*this);
+    AddComponent<ChunkGenerator>();
+    AddComponent<ChunkMeshGenerator>(*this);
 }
 
 Chunk::~Chunk()
@@ -66,10 +64,8 @@ void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
         meshData.Indices.data(),
         meshData.Indices.size(),
         {
-            {AttribType::Float3, false}, // Position
-            {AttribType::Float3, false}, // Normal
-            {AttribType::Float2, false}, // UV
-            {AttribType::Int, false}     // TextureIndex
+            {AttribType::UInt, false}, // Data1
+            {AttribType::UInt, false}, // Data2
         });
 
     meshRenderer.GetMesh().SetTexture(texture);

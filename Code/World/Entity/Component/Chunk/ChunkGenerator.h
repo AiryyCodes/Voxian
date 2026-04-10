@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-#define CHUNK_SIZE 16
+#define CHUNK_SIZE 32
 #define CHUNK_HEIGHT 256
 
 #define PADDED_CHUNK_SIZE (CHUNK_SIZE + 2)

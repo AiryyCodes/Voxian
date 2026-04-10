@@ -20,5 +20,5 @@ public:
     int GetRenderDistance() const { return m_RenderDistance; }
 
 private:
-    int m_RenderDistance = 4;
+    int m_RenderDistance = 8;
 };

@@ -1,6 +1,5 @@
 #include "Engine.h"
 #include "Logger.h"
-#include "Renderer/Mesh.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shader.h"
 #include "Util/Time.h"

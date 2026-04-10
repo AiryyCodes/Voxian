@@ -1,5 +1,6 @@
 #include "TerrainNoise.h"
 #include "Engine.h"
+#include "FastNoiseLite.h"
 #include "Logger.h"
 #include "NoiseFactory.h"
 
@@ -7,6 +8,7 @@
 #include <cassert>
 #include <fstream>
 #include <glaze/json/generic.hpp>
+#include <threads.h>
 
 void TerrainNoise::Init()
 {
@@ -53,5 +55,11 @@ TerrainConfig TerrainNoise::Load(const std::string &path)
 
 float TerrainNoise::GetNoise(float worldX, float worldZ) const
 {
+    if (m_Config.UseDomainWarp)
+    {
+        thread_local FastNoiseLite localWarp = NoiseFactory::BuildDomainWarp(m_Config);
+        localWarp.DomainWarp(worldX, worldZ);
+    }
+
     return m_Noise.GetNoise(worldX, worldZ) * m_Config.Amplitude;
 }

@@ -27,62 +27,93 @@ void ChunkManager::Init()
 
 void ChunkManager::Update(float delta)
 {
+    // Register all chunks from the last frame
+    for (Chunk *chunk : m_ChunksReadyToRegister)
+    {
+        m_World.RegisterEntity(chunk);
+    }
+    m_ChunksReadyToRegister.clear();
+
     Player *player = m_World.GetPlayer();
     Vector3f playerPos = player->GetComponent<Transform>().Position;
-    int renderDistance = player->GetRenderDistance();
 
-    // Load chunks around the player (for simplicity, we just load a 3x3 area around the player)
-    Vector2i playerChunkPos = Vector2i(static_cast<int>(std::floor(playerPos.x / CHUNK_SIZE)), static_cast<int>(std::floor(playerPos.z / CHUNK_SIZE)));
-    for (int x = -renderDistance; x <= renderDistance; x++)
+    Vector2i playerChunkPos = Vector2i(
+        static_cast<int>(std::floor(playerPos.x / CHUNK_SIZE)),
+        static_cast<int>(std::floor(playerPos.z / CHUNK_SIZE)));
+
+    // ONLY update the queue if the player moved to a new chunk
+    if (playerChunkPos != m_LastPlayerChunkPos)
     {
-        for (int z = -renderDistance; z <= renderDistance; z++)
+        int renderDistance = player->GetRenderDistance();
+
+        // 1. Discover new chunks
+        for (int x = -renderDistance; x <= renderDistance; x++)
         {
-            Vector2i chunkPos = playerChunkPos + Vector2i(x, z);
-            if (m_Chunks.find(chunkPos) == m_Chunks.end() && m_PendingChunks.find(chunkPos) == m_PendingChunks.end())
+            for (int z = -renderDistance; z <= renderDistance; z++)
             {
-                // Avoid duplicates in the queue
-                if (std::find(m_ChunkLoadQueue.begin(), m_ChunkLoadQueue.end(), chunkPos) == m_ChunkLoadQueue.end())
+                Vector2i chunkPos = playerChunkPos + Vector2i(x, z);
+                if (m_Chunks.find(chunkPos) == m_Chunks.end() &&
+                    m_PendingChunks.find(chunkPos) == m_PendingChunks.end() &&
+                    m_InQueue.find(chunkPos) == m_InQueue.end())
+                {
                     m_ChunkLoadQueue.push_back(chunkPos);
+                    m_InQueue.insert(chunkPos);
+                }
             }
         }
+
+        UnloadChunks(renderDistance, playerChunkPos);
+
+        m_LastPlayerChunkPos = playerChunkPos;
     }
 
+    // Process a limited number of tasks from the queue per frame
     int chunksQueued = 0;
-    for (auto it = m_ChunkLoadQueue.begin(); it != m_ChunkLoadQueue.end() && chunksQueued < MAX_CHUNKS_PER_FRAME;)
+    while (!m_ChunkLoadQueue.empty() && chunksQueued < MAX_CHUNKS_PER_FRAME)
     {
-        QueueChunk(*it);
-        it = m_ChunkLoadQueue.erase(it);
+        QueueChunk(m_ChunkLoadQueue.front());
+        m_InQueue.erase(m_ChunkLoadQueue.front());
+        m_ChunkLoadQueue.pop_front();
         chunksQueued++;
     }
 
     PollPendingChunks();
-    UnloadChunks(renderDistance, playerChunkPos);
 }
 
 void ChunkManager::QueueChunk(Vector2i chunkPos)
 {
     Chunk *chunk = new Chunk(chunkPos);
-    ChunkSnapshot snapshot = chunk->CreateSnapshot();
 
-    m_PendingChunks[chunkPos] = {
-        std::async(std::launch::async, [chunk, snapshot = std::move(snapshot)]()
-                   { return chunk->GetComponent<ChunkMeshGenerator>().GenerateMesh(snapshot); }),
-        chunk};
+    auto future = m_ThreadPool.submit_task([this, chunk, noiseCopy = m_Noise]()
+                                           {
+        chunk->GetComponent<ChunkGenerator>().Generate(noiseCopy);
+
+        ChunkSnapshot snapshot = chunk->CreateSnapshot();
+        return chunk->GetComponent<ChunkMeshGenerator>().GenerateMesh(snapshot); });
+
+    m_PendingChunks[chunkPos] = {std::move(future), chunk};
 }
 
 void ChunkManager::PollPendingChunks()
 {
-    int uploadsThisFrame = 0;
-    for (auto it = m_PendingChunks.begin(); it != m_PendingChunks.end() && uploadsThisFrame < MAX_CHUNKS_PER_FRAME;)
+    constexpr float MAX_UPLOAD_MS = 2.0f;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (auto it = m_PendingChunks.begin(); it != m_PendingChunks.end();)
     {
+        auto now = std::chrono::high_resolution_clock::now();
+        if (std::chrono::duration<float, std::milli>(now - start).count() >= MAX_UPLOAD_MS)
+            break;
+
         if (it->second.MeshDataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
         {
             ChunkMeshData meshData = it->second.MeshDataFuture.get();
             it->second.Chunk->UploadMesh(meshData, m_ChunkTextureArray);
-            m_World.RegisterEntity(it->second.Chunk);
+
+            m_ChunksReadyToRegister.push_back(it->second.Chunk);
+
             m_Chunks[it->first] = it->second.Chunk;
             it = m_PendingChunks.erase(it);
-            uploadsThisFrame++;
         }
         else
             ++it;
