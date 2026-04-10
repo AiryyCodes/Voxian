@@ -16,4 +16,9 @@ class Player : public Entity
 {
 public:
     Player();
+
+    int GetRenderDistance() const { return m_RenderDistance; }
+
+private:
+    int m_RenderDistance = 4;
 };

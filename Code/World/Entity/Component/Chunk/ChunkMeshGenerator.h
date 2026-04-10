@@ -1,23 +1,8 @@
 #pragma once
 
-#include "Math/Vector.h"
+#include "World/Chunk/ChunkMesh.h"
 #include "World/Entity/Chunk.h"
 #include "World/Entity/Component/Component.h"
-#include <vector>
-
-struct ChunkVertex
-{
-    Vector3f Position;
-    Vector3f Normal;
-    Vector2f UV;
-    int TextureIndex;
-};
-
-struct ChunkMeshData
-{
-    std::vector<ChunkVertex> Vertices;
-    std::vector<unsigned int> Indices;
-};
 
 class ChunkMeshGenerator : public Component
 {
@@ -25,7 +10,7 @@ public:
     ChunkMeshGenerator(Chunk &chunk);
     ~ChunkMeshGenerator();
 
-    ChunkMeshData GenerateMesh();
+    ChunkMeshData GenerateMesh(const ChunkSnapshot &snapshot);
 
 private:
     Chunk &m_Chunk;

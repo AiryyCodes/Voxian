@@ -4,6 +4,8 @@
 #include "Engine.h"
 #include "Math/Vector.h"
 #include "Renderer/ShaderLibrary.h"
+#include "Renderer/Texture.h"
+#include "Util/Memory.h"
 #include "World/Block/BlockRegistry.h"
 #include "World/Entity/Component/MeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
@@ -22,23 +24,51 @@ Chunk::Chunk(Vector2i position)
     generator.Generate();
 
     ChunkMeshGenerator &meshGenerator = AddComponent<ChunkMeshGenerator>(*this);
-    ChunkMeshData meshData = meshGenerator.GenerateMesh();
-
-    MeshRenderer &meshRenderer = AddComponent<MeshRenderer>(Shaders::Chunk);
-    meshRenderer.GetMesh().Init(meshData.Vertices.data(), meshData.Vertices.size() * sizeof(ChunkVertex), meshData.Indices.data(), meshData.Indices.size(), {
-                                                                                                                                                                {AttribType::Float3, false}, // Position
-                                                                                                                                                                {AttribType::Float3, false}, // Normal
-                                                                                                                                                                {AttribType::Float2, false}, // UV
-                                                                                                                                                                {AttribType::Int, false}     // TextureIndex
-                                                                                                                                                            });
-
-    BlockRegistry &blockRegistry = EngineContext::GetBlockRegistry();
-    std::vector<std::string> textures = blockRegistry.GetAllBlockTextures();
-    meshRenderer.GetMesh().SetTexture(16, 16, textures.size(), textures, GL_RGB);
 }
 
 Chunk::~Chunk()
 {
+}
+
+ChunkSnapshot Chunk::CreateSnapshot() const
+{
+    ChunkSnapshot snapshot;
+
+    // Copy block data
+    for (int x = 0; x < PADDED_CHUNK_SIZE; x++)
+        for (int z = 0; z < PADDED_CHUNK_SIZE; z++)
+            for (int y = 0; y < PADDED_CHUNK_HEIGHT; y++)
+                snapshot.Blocks[x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z)] = GetBlock(x - 1, y - 1, z - 1);
+
+    // Snapshot block registry — no lock needed on worker thread after this
+    BlockRegistry &registry = EngineContext::GetBlockRegistry();
+    int blockCount = registry.GetNumBlocks();
+    snapshot.BlockProperties.resize(blockCount);
+    for (int i = 0; i < blockCount; i++)
+    {
+        const Block *block = registry.GetBlockByIndex(i);
+        snapshot.BlockProperties[i] = block->GetProperties();
+    }
+
+    return snapshot;
+}
+
+void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
+{
+    MeshRenderer &meshRenderer = AddComponent<MeshRenderer>(Shaders::Chunk);
+    meshRenderer.GetMesh().Init(
+        meshData.Vertices.data(),
+        meshData.Vertices.size() * sizeof(ChunkVertex),
+        meshData.Indices.data(),
+        meshData.Indices.size(),
+        {
+            {AttribType::Float3, false}, // Position
+            {AttribType::Float3, false}, // Normal
+            {AttribType::Float2, false}, // UV
+            {AttribType::Int, false}     // TextureIndex
+        });
+
+    meshRenderer.GetMesh().SetTexture(texture);
 }
 
 uint16_t Chunk::GetBlock(int x, int y, int z) const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Chunk/ChunkManager.h"
 #include "Util/Memory.h"
 #include "Renderer/Renderer.h"
 #include "World/Entity/Entity.h"
@@ -13,6 +14,8 @@
 class World
 {
 public:
+    World() : m_ChunkManager(*this) {}
+
     void Init();
     void Update(float delta);
     void Render(Renderer &renderer);
@@ -28,14 +31,26 @@ public:
         return ref;
     }
 
+    template <typename T>
+    void RegisterEntity(T *entity)
+    {
+        m_Entities.push_back(std::move(Scope<T>(entity)));
+    }
+
+    void DestroyEntity(Entity *entity);
+
     void SetActiveCamera(Camera *camera) { m_ActiveCamera = camera; }
     Camera *GetActiveCamera() { return m_ActiveCamera; }
 
     Player *GetPlayer() { return m_Player; }
+
+    ChunkManager &GetChunkManager() { return m_ChunkManager; }
 
 private:
     Player *m_Player = nullptr;
     Camera *m_ActiveCamera = nullptr;
 
     std::vector<Scope<Entity>> m_Entities;
+
+    ChunkManager m_ChunkManager;
 };

@@ -1,29 +1,28 @@
 #pragma once
 
 #include "Math/Vector.h"
+#include "Renderer/Texture.h"
+#include "Util/Memory.h"
+#include "World/Chunk/ChunkMesh.h"
+#include "World/Chunk/ChunkSnapshot.h"
+#include "World/Entity/Component/Chunk/ChunkGenerator.h"
 #include "World/Entity/Entity.h"
 
 #include <cstdint>
 #include <vector>
 
-#define CHUNK_SIZE 16
-#define CHUNK_HEIGHT 256
-
 struct ChunkBlockData
 {
-    static constexpr int PADDED_SIZE = CHUNK_SIZE + 2;
-    static constexpr int PADDED_HEIGHT = CHUNK_HEIGHT + 2;
-
     std::vector<uint16_t> Indices;
 
     ChunkBlockData()
     {
-        Indices.resize(PADDED_SIZE * PADDED_HEIGHT * PADDED_SIZE);
+        Indices.resize(PADDED_CHUNK_SIZE * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE);
     }
 
     uint32_t GetIndex(int x, int y, int z) const
     {
-        return x + PADDED_SIZE * (y + PADDED_HEIGHT * z);
+        return x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z);
     }
 
     uint16_t GetId(int x, int y, int z) const
@@ -47,6 +46,9 @@ class Chunk : public Entity
 public:
     Chunk(Vector2i position);
     ~Chunk();
+
+    ChunkSnapshot CreateSnapshot() const;
+    void UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture);
 
     uint16_t GetBlock(int x, int y, int z) const;
     void SetBlock(int x, int y, int z, uint16_t id);

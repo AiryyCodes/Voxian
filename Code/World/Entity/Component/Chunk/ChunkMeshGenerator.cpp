@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "Math/Vector.h"
 #include "Util/Direction.h"
+#include "World/Block/BlockProperties.h"
 #include "World/Entity/Chunk.h"
 
 #include <cstdint>
@@ -23,7 +24,7 @@ ChunkMeshGenerator::~ChunkMeshGenerator()
 {
 }
 
-ChunkMeshData ChunkMeshGenerator::GenerateMesh()
+ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
 {
     ChunkMeshData meshData;
     meshData.Vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
@@ -59,27 +60,22 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh()
                     blockPos + Vector3i(blockSize.x, blockSize.y, blockSize.z),
                 };
 
-                uint16_t blockId = chunk.GetBlock(x, y, z);
+                uint16_t blockId = snapshot.GetBlock(x + 1, y + 1, z + 1);
                 if (blockId == 0)
                     continue; // Skip air blocks
 
-                const Block *block = EngineContext::GetBlockRegistry().GetBlockByIndex(blockId);
-                if (!block)
-                    continue;
+                const BlockProperties &properties = snapshot.GetBlockProperties(blockId);
 
-                if (block->GetProperties().IsAir)
+                if (properties.IsAir)
                     continue; // Skip air blocks
 
                 for (const auto &direction : Direction::GetAllDirections())
                 {
                     Vector3i relativePos = blockPos + direction.ToVector();
-                    uint16_t neighborId = chunk.GetBlock(relativePos.x, relativePos.y, relativePos.z);
+                    uint16_t neighborId = snapshot.GetBlock(relativePos.x + 1, relativePos.y + 1, relativePos.z + 1);
+                    const BlockProperties &neighorProperties = snapshot.GetBlockProperties(neighborId);
 
-                    const Block *neighborBlock = EngineContext::GetBlockRegistry().GetBlockByIndex(neighborId);
-                    if (!neighborBlock)
-                        continue;
-
-                    bool isFaceVisible = (neighborId == 0) || neighborBlock->GetProperties().IsAir;
+                    bool isFaceVisible = (neighborId == 0) || neighorProperties.IsAir;
 
                     if (!isFaceVisible)
                         continue;

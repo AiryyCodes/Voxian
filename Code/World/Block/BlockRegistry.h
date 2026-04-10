@@ -20,6 +20,8 @@ public:
     const Block *GetBlockByIndex(uint16_t id) const;
     uint16_t GetBlockIndexById(const std::string &id) const;
 
+    int GetNumBlocks() const { return m_Blocks.size(); }
+
     bool IsIdRegistered(const std::string &id) const;
 
     std::vector<std::string> GetAllBlockTextures() const;

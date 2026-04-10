@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Attribute.h"
+#include "Renderer/Texture.h"
 #include "Texture.h"
+#include "Util/Memory.h"
 
 #include <cstddef>
 #include <initializer_list>
 #include <glad/gl.h>
-#include <memory>
-#include <optional>
 
 class Mesh
 {
@@ -29,7 +29,8 @@ public:
     int GetNumIndices() const { return m_NumIndices; }
     bool HasIndices() const { return m_EBO != 0; }
 
-    const Texture *GetTexture() const { return m_Texture.get(); }
+    Ref<Texture> GetTexture() const { return m_Texture; }
+    void SetTexture(Ref<Texture> texture) { m_Texture = texture; }
     void SetTexture(int width, int height, const void *data, int format);
     void SetTexture(int width, int height, int layers, const std::vector<std::string> &fileNames, int format);
 
@@ -41,5 +42,5 @@ private:
     int m_NumVertices = 0;
     int m_NumIndices = 0;
 
-    std::unique_ptr<Texture> m_Texture;
+    Ref<Texture> m_Texture;
 };
