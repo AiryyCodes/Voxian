@@ -10,9 +10,15 @@
             "Condition": "AtSurface"
         },
         {
+            "Block": "dirt",
+            "Condition": "BelowSurface",
+            "MaxDepth": 3,
+            "Priority": 1
+        },
+        {
             "Block": "stone",
             "Condition": "BelowSurface",
-            "Priority": 1
+            "Priority": 2
         }
     ]
 }

@@ -9,7 +9,7 @@
 struct ChunkSnapshot
 {
     std::array<uint16_t, PADDED_CHUNK_SIZE * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE> Blocks = {};
-    std::vector<BlockProperties> BlockProperties; // indexed by blockId
+    std::vector<struct BlockProperties> BlockProperties; // indexed by blockId
 
     uint16_t GetBlock(int x, int y, int z) const
     {

@@ -18,7 +18,7 @@ class World;
 struct PendingChunk
 {
     std::future<ChunkMeshData> MeshDataFuture;
-    Chunk *Chunk;
+    class Chunk *Chunk;
 };
 
 class ChunkManager

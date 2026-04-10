@@ -27,6 +27,8 @@ void BlockRegistry::Init()
         if (entry.path().filename() == "air.json")
             continue; // Skip air block since it's already registered
 
+        LOG_INFO("Loading block data: {}", entry.path().string());
+
         if (entry.path().extension() == ".json")
         {
             std::ifstream file(entry.path());

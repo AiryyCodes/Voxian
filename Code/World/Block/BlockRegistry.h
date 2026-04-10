@@ -27,7 +27,7 @@ public:
     std::vector<std::string> GetAllBlockTextures() const;
 
 private:
-    std::unordered_map<std::string, BlockData> m_BlockDataMap;
+    std::map<std::string, BlockData> m_BlockDataMap;
     std::unordered_map<std::string, Scope<Block>> m_Blocks;
     std::unordered_map<uint16_t, std::string> m_IdToName;
 };
