@@ -6,6 +6,7 @@
 #include "Renderer/ShaderLibrary.h"
 #include "Renderer/Texture.h"
 #include "Util/Memory.h"
+#include "World/Block/Block.h"
 #include "World/Block/BlockRegistry.h"
 #include "World/Chunk/ChunkManager.h"
 #include "World/Entity/Component/MeshRenderer.h"
@@ -90,4 +91,25 @@ void Chunk::SetBlock(int x, int y, int z, uint16_t id)
         z < 0 || z >= CHUNK_SIZE)
         return;
     m_Blocks.SetId(x + 1, y + 1, z + 1, id);
+}
+
+int Chunk::GetTopBlockY(int x, int z) const
+{
+    // +1 for padding
+    int paddedX = x + 1;
+    int paddedZ = z + 1;
+
+    // Start from the very top and move down
+    for (int y = PADDED_CHUNK_HEIGHT - 1; y >= 0; y--)
+    {
+        uint16_t blockId = GetBlock(paddedX, y, paddedZ);
+
+        const Block *block = EngineContext::GetBlockRegistry().GetBlockByIndex(blockId);
+        if (block && !block->GetProperties().IsAir)
+        {
+            return y;
+        }
+    }
+
+    return 0; // Entire column is air
 }

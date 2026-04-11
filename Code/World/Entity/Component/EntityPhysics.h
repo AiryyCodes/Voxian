@@ -3,13 +3,16 @@
 #include "Math/Vector.h"
 #include "Physics/AABB.h"
 #include "World/Entity/Component/Component.h"
-#include "World/World.h"
+
 #include <vector>
 
 class EntityPhysics : public Component
 {
 public:
     void OnUpdate(float delta) override;
+
+    bool IsEnabled() const { return m_IsEnabled; }
+    void SetEnabled(bool enabled) { m_IsEnabled = enabled; }
 
     Vector3f GetVelocity() const { return m_Velocity; }
     void AddVelocity(Vector3f v) { m_Velocity += v; }
@@ -24,6 +27,8 @@ private:
     float GetPenetration(const AABB &entity, const AABB &block, const Vector3f &delta);
 
 private:
+    bool m_IsEnabled = true;
+
     float m_Gravity = 28.0f;
     Vector3f m_Velocity;
     bool m_IsOnGround;

@@ -8,13 +8,15 @@
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Component/Camera.h"
 #include "World/Entity/Entity.h"
+#include "World/World.h"
 #include <GLFW/glfw3.h>
+#include <cmath>
 
 Player::Player()
     : Entity("Player")
 {
     auto &transform = AddComponent<Transform>();
-    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_HEIGHT - 64 + 32.0f, CHUNK_SIZE / 2.0f);
+    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_HEIGHT - 64, CHUNK_SIZE / 2.0f);
 
     Input &input = EngineContext::GetInput();
     input.SetCursorMode(GLFW_CURSOR_DISABLED);
@@ -22,7 +24,49 @@ Player::Player()
     AddComponent<PlayerInput>();
     AddComponent<EntityPhysics>();
 
+    AddComponent<SpawnController>();
+
     AddComponent<Camera>(70.0f);
+}
+
+void Player::SetPhysicsEnabled(bool enabled)
+{
+    auto &physics = GetComponent<EntityPhysics>();
+    physics.SetEnabled(enabled);
+}
+
+void SpawnController::OnUpdate(float delta)
+{
+    auto &transform = GetOwner().GetComponent<Transform>();
+
+    World &world = EngineContext::GetWorld();
+    auto &chunkManager = world.GetChunkManager();
+
+    int chunkX = static_cast<int>(floor(transform.Position.x / CHUNK_SIZE));
+    int chunkZ = static_cast<int>(floor(transform.Position.z / CHUNK_SIZE));
+
+    // 1. Check if the chunk under the player is ready
+    if (chunkManager.IsChunkLoaded(chunkX, chunkZ))
+    {
+        auto chunk = chunkManager.GetChunk(chunkX, chunkZ);
+
+        // 2. Find the ground and place the player
+        int groundY = chunk->GetTopBlockY(8, 8);
+        transform.Position.y = static_cast<float>(groundY) + 2.0f;
+
+        // 3. Enable gravity/physics on the player
+        GetOwner().GetComponent<EntityPhysics>().SetEnabled(true);
+
+        // 4. Mission accomplished: Remove this component so it never runs again
+        Destroy();
+
+        LOG_INFO("SpawnAnchor: Player placed and physics enabled. Self-destructing.");
+    }
+    else
+    {
+        // Keep physics disabled and velocity at zero while waiting
+        GetOwner().GetComponent<EntityPhysics>().SetEnabled(false);
+    }
 }
 
 void PlayerInput::OnUpdate(float delta)

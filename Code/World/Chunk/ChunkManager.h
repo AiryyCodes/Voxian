@@ -18,7 +18,7 @@ class World;
 struct PendingChunk
 {
     std::future<ChunkMeshData> MeshDataFuture;
-    Ref<Chunk> Chunk;
+    Ref<class Chunk> Chunk;
 };
 
 class ChunkManager
@@ -29,11 +29,16 @@ public:
     void Init();
     void Update(float delta);
 
+    Ref<Chunk> GetChunk(int x, int z);
+    bool IsChunkLoaded(int x, int z);
+
     const Block *GetBlock(int x, int y, int z) const;
 
     const TerrainNoise &GetTerrainNoise() const { return m_Noise; }
 
 private:
+    void InitSpawnArea(Vector3f playerPos);
+
     void QueueChunk(Vector2i chunkPos);
     void PollPendingChunks();
     void UnloadChunks(int renderDistance, Vector2i playerChunkPos);
@@ -56,4 +61,7 @@ private:
     Ref<TextureArray2D> m_ChunkTextureArray;
 
     BS::thread_pool<> m_ThreadPool;
+
+    bool m_IsSpawnAreaReady = false;
+    Vector2i m_SpawnChunkPos;
 };

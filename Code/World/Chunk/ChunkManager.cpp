@@ -11,6 +11,7 @@
 #include "World/Entity/Player.h"
 #include "World/World.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <future>
 #include <utility>
@@ -69,6 +70,22 @@ void ChunkManager::Update(float delta)
         m_LastPlayerChunkPos = playerChunkPos;
     }
 
+    std::sort(m_ChunkLoadQueue.begin(), m_ChunkLoadQueue.end(),
+              [playerChunkPos](const Vector2i &a, const Vector2i &b)
+              {
+                  // Distance squared for chunk A
+                  int dxA = a.x - playerChunkPos.x;
+                  int dzA = a.y - playerChunkPos.y;
+                  int distSqA = dxA * dxA + dzA * dzA;
+
+                  // Distance squared for chunk B
+                  int dxB = b.x - playerChunkPos.x;
+                  int dzB = b.y - playerChunkPos.y;
+                  int distSqB = dxB * dxB + dzB * dzB;
+
+                  return distSqA < distSqB; // Closer chunks come first
+              });
+
     // Process a limited number of tasks from the queue per frame
     int chunksQueued = 0;
     while (!m_ChunkLoadQueue.empty() && chunksQueued < MAX_CHUNKS_PER_FRAME)
@@ -80,7 +97,53 @@ void ChunkManager::Update(float delta)
     }
 
     PollPendingChunks();
+
+    if (!m_IsSpawnAreaReady)
+    {
+        if (m_Chunks.contains(m_SpawnChunkPos))
+        {
+            m_IsSpawnAreaReady = true;
+            player->SetPhysicsEnabled(true);
+            LOG_INFO("Spawn area ready! Spawning player...");
+        }
+        else
+        {
+            player->SetPhysicsEnabled(false);
+        }
+    }
 }
+
+Ref<Chunk> ChunkManager::GetChunk(int x, int z)
+{
+    auto it = m_Chunks.find(Vector2i(x, z));
+    return it != m_Chunks.end() ? it->second : nullptr;
+}
+
+bool ChunkManager::IsChunkLoaded(int x, int z)
+{
+    return m_Chunks.contains(Vector2i(x, z));
+}
+
+void ChunkManager::InitSpawnArea(Vector3f playerPos)
+{
+    m_SpawnChunkPos = Vector2i(
+        static_cast<int>(std::floor(playerPos.x / CHUNK_SIZE)),
+        static_cast<int>(std::floor(playerPos.z / CHUNK_SIZE)));
+
+    // Add spawn chunk and 1-chunk radius to the very front of the queue
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int z = -1; z <= 1; z++)
+        {
+            Vector2i pos = m_SpawnChunkPos + Vector2i(x, z);
+            if (!m_Chunks.contains(pos))
+            {
+                m_ChunkLoadQueue.push_front(pos);
+                m_InQueue.insert(pos);
+            }
+        }
+    }
+};
 
 void ChunkManager::QueueChunk(Vector2i chunkPos)
 {

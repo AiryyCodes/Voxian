@@ -1,6 +1,7 @@
 #include "World/Entity/Entity.h"
 #include "Physics/AABB.h"
 #include "Renderer/Renderer.h"
+#include <algorithm>
 
 void Entity::Update(float delta)
 {
@@ -8,6 +9,9 @@ void Entity::Update(float delta)
     {
         component->OnUpdate(delta);
     }
+
+    std::erase_if(m_Components, [](const auto &item)
+                  { return item.second->IsDead(); });
 }
 
 void Entity::Render(Renderer &renderer)

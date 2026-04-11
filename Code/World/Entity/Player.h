@@ -13,10 +13,18 @@ private:
     float m_JumpForce = 9.0f;
 };
 
+class SpawnController : public Component
+{
+public:
+    void OnUpdate(float delta) override;
+};
+
 class Player : public Entity
 {
 public:
     Player();
+
+    void SetPhysicsEnabled(bool enabled);
 
     AABB GetAABB() const override;
 

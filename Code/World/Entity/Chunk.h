@@ -54,6 +54,8 @@ public:
     uint16_t GetBlock(int x, int y, int z) const;
     void SetBlock(int x, int y, int z, uint16_t id);
 
+    int GetTopBlockY(int x, int z) const;
+
     Vector2i GetPosition() const { return m_Position; }
     Vector3i GetWorldPosition() const { return Vector3i(m_Position.x * CHUNK_SIZE, 0, m_Position.y * CHUNK_SIZE); }
 
