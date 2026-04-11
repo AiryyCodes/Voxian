@@ -22,15 +22,16 @@ struct ChunkBlockData
 
     uint32_t GetIndex(int x, int y, int z) const
     {
-        return x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z);
+        return x + PADDED_CHUNK_SIZE * (z + PADDED_CHUNK_SIZE * y);
     }
 
     uint16_t GetId(int x, int y, int z) const
     {
-        uint32_t index = GetIndex(x, y, z);
-        if (index < Indices.size())
-            return Indices[index];
-        return 0; // Default to air if out of bounds
+        if (x < 0 || x >= PADDED_CHUNK_SIZE ||
+            y < 0 || y >= PADDED_CHUNK_HEIGHT ||
+            z < 0 || z >= PADDED_CHUNK_SIZE)
+            return 0;
+        return Indices[GetIndex(x, y, z)];
     }
 
     void SetId(int x, int y, int z, uint16_t id)
@@ -57,6 +58,8 @@ public:
     Vector3i GetWorldPosition() const { return Vector3i(m_Position.x * CHUNK_SIZE, 0, m_Position.y * CHUNK_SIZE); }
 
 private:
+    friend class ChunkGenerator;
+
     Vector2i m_Position;
 
     ChunkBlockData m_Blocks;

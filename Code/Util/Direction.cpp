@@ -46,9 +46,9 @@ Vector3i Direction::ToVector() const
     case Value::Right:
         return Vector3i(1, 0, 0);
     case Value::Forward:
-        return Vector3i(0, 0, 1);
-    case Value::Backward:
         return Vector3i(0, 0, -1);
+    case Value::Backward:
+        return Vector3i(0, 0, 1);
     default:
         static_assert("Invalid direction value");
         return Vector3i(0, 0, 0); // Default case to silence warnings

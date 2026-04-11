@@ -32,7 +32,7 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
             {
                 int worldY = origin.y + y;
                 uint16_t resolvedBlock = ResolveBlock(config, worldY, surfaceY);
-                chunk.SetBlock(x, y, z, resolvedBlock);
+                chunk.m_Blocks.SetId(x, y, z, resolvedBlock);
             }
         }
     }

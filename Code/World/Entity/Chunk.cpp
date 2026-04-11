@@ -40,7 +40,7 @@ ChunkSnapshot Chunk::CreateSnapshot() const
     for (int x = 0; x < PADDED_CHUNK_SIZE; x++)
         for (int z = 0; z < PADDED_CHUNK_SIZE; z++)
             for (int y = 0; y < PADDED_CHUNK_HEIGHT; y++)
-                snapshot.Blocks[x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z)] = GetBlock(x - 1, y - 1, z - 1);
+                snapshot.Blocks[x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z)] = m_Blocks.GetId(x, y, z);
 
     // Snapshot block registry — no lock needed on worker thread after this
     BlockRegistry &registry = EngineContext::GetBlockRegistry();
@@ -73,12 +73,11 @@ void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
 
 uint16_t Chunk::GetBlock(int x, int y, int z) const
 {
-    // Bounds check against CHUNK_SIZE, not PADDED_SIZE
     if (x < 0 || x >= CHUNK_SIZE ||
         y < 0 || y >= CHUNK_HEIGHT ||
         z < 0 || z >= CHUNK_SIZE)
         return 0;
-    return m_Blocks.GetId(x + 1, y + 1, z + 1); // +1 offset into padded array
+    return m_Blocks.GetId(x + 1, y + 1, z + 1);
 }
 
 void Chunk::SetBlock(int x, int y, int z, uint16_t id)

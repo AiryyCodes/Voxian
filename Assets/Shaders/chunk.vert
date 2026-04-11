@@ -12,6 +12,7 @@ uniform vec3 u_ChunkOrigin;
 out vec2  v_UV;
 out vec3  v_Normal;
 flat out int v_TextureIndex;
+out float v_AO;
 
 const vec3 normals[6] = vec3[](
     vec3( 1, 0, 0),  // Right
@@ -40,6 +41,9 @@ void main()
 
     v_Normal = normals[normalIndex];
     v_UV     = uvs[cornerIndex];
+    
+    float ao = float((Data2 >> 18) & 0x3u) / 3.0;
+    v_AO = ao;
 
     gl_Position = u_Projection * u_View * u_Transform * vec4(u_ChunkOrigin + vec3(x, y, z), 1.0);
 }

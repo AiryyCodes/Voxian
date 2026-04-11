@@ -17,7 +17,7 @@ Player::Player()
     input.SetCursorMode(GLFW_CURSOR_DISABLED);
 
     AddComponent<PlayerInput>();
-    AddComponent<Camera>(60.0f);
+    AddComponent<Camera>(70.0f);
 }
 
 void PlayerInput::OnUpdate(float delta)
