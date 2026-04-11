@@ -28,24 +28,23 @@ Player::Player()
 void PlayerInput::OnUpdate(float delta)
 {
     auto &transform = GetOwner().GetComponent<Transform>();
-
+    auto &physics = GetOwner().GetComponent<EntityPhysics>();
     Input &input = EngineContext::GetInput();
 
-    // Transform local directions through the camera's rotation matrix to get world directions
-    // This ensures movement matches the actual camera orientation
+    // Get forward/right from player yaw only (ignore pitch for movement)
     glm::vec3 localForward(0.f, 0.f, -1.f);
     glm::vec3 localRight(1.f, 0.f, 0.f);
-    glm::vec3 localUp(0.f, 1.f, 0.f);
-
     Matrix4 transformMatrix = transform.GetMatrix();
     glm::vec3 forward = glm::normalize(glm::vec3(transformMatrix * glm::vec4(localForward, 0.f)));
     glm::vec3 right = glm::normalize(glm::vec3(transformMatrix * glm::vec4(localRight, 0.f)));
-    glm::vec3 up = glm::normalize(glm::vec3(transformMatrix * glm::vec4(localUp, 0.f)));
 
-    // Flatten forward to ground plane
+    // Flatten to ground plane
     forward.y = 0.f;
     forward = glm::normalize(forward);
+    right.y = 0.f;
+    right = glm::normalize(right);
 
+    // Build XZ movement direction
     glm::vec3 movement(0.f);
     if (input.IsKeyDown(GLFW_KEY_W))
         movement += forward;
@@ -56,53 +55,41 @@ void PlayerInput::OnUpdate(float delta)
     if (input.IsKeyDown(GLFW_KEY_D))
         movement += right;
 
-    // Go straight up when space is held, and go down when shift is held
-    // Not dependent on camera rotation since it's just a simple up/down movement
-    if (input.IsKeyDown(GLFW_KEY_SPACE))
-        movement += localUp;
-    if (input.IsKeyDown(GLFW_KEY_LEFT_SHIFT))
-        movement -= localUp;
-
+    // Apply XZ velocity directly (friction in EntityPhysics handles deceleration)
     if (glm::length(movement) > 0.f)
-        transform.Position += glm::normalize(movement) * m_Speed * delta;
+    {
+        glm::vec3 dir = glm::normalize(movement);
+        physics.SetVelocity(Vector3f(
+            dir.x * m_Speed,
+            physics.GetVelocity().y, // preserve Y so gravity isn't wiped
+            dir.z * m_Speed));
+    }
 
-    // Camera rotation with mouse
+    // Jump
+    if (input.IsKeyDown(GLFW_KEY_SPACE) && physics.IsOnGround())
+        physics.SetVelocity(Vector3f(physics.GetVelocity().x, m_JumpForce, physics.GetVelocity().z));
+
+    // Mouse look
     static bool firstMouse = true;
     static float lastX = 400.f, lastY = 300.f;
-
     float xPos = input.GetMouseX();
     float yPos = input.GetMouseY();
-
     if (firstMouse)
     {
         lastX = xPos;
         lastY = yPos;
         firstMouse = false;
     }
-
-    float xOffset = xPos - lastX;
-    float yOffset = lastY - yPos; // Reversed since y-coordinates go from bottom to top
-
+    float xOffset = (xPos - lastX) * 0.1f;
+    float yOffset = (lastY - yPos) * 0.1f;
     lastX = xPos;
     lastY = yPos;
 
-    float sensitivity = 0.1f;
-    xOffset *= sensitivity;
-    yOffset *= sensitivity;
-
-    // Update player yaw (horizontal rotation)
     transform.Rotation.y -= xOffset;
 
-    // Update camera pitch (vertical rotation)
     auto &camera = GetOwner().GetComponent<Camera>();
-    camera.SetPitch(camera.GetPitch() + yOffset);
-
-    // Clamp camera pitch
-    float currentPitch = camera.GetPitch();
-    if (currentPitch > 89.0f)
-        camera.SetPitch(89.0f);
-    if (currentPitch < -89.0f)
-        camera.SetPitch(-89.0f);
+    float pitch = glm::clamp(camera.GetPitch() + yOffset, -89.f, 89.f);
+    camera.SetPitch(pitch);
 }
 
 AABB Player::GetAABB() const

@@ -10,6 +10,7 @@ public:
 
 private:
     float m_Speed = 5.0f;
+    float m_JumpForce = 9.0f;
 };
 
 class Player : public Entity

@@ -1,19 +1,27 @@
 #pragma once
 
 #include "Math/Vector.h"
+#include "Physics/AABB.h"
 #include "World/Entity/Component/Component.h"
 #include "World/World.h"
+#include <vector>
 
 class EntityPhysics : public Component
 {
 public:
     void OnUpdate(float delta) override;
 
-private:
-    bool ResolveCollisions(World &world, float step, int axis);
+    Vector3f GetVelocity() const { return m_Velocity; }
+    void AddVelocity(Vector3f v) { m_Velocity += v; }
+    void SetVelocity(Vector3f v) { m_Velocity = v; }
 
-    float SweepAxis(int axis, float velocity, World &world);
-    float SweepAxisY(float velocity, World &world);
+    bool IsOnGround() const { return m_IsOnGround; }
+
+private:
+    void MoveAndCollide(Vector3f delta);
+    std::vector<Vector3i> GetBlocksInAABB(const AABB &box, Vector3f delta);
+    AABB GetBlockAABB(Vector3i blockPos);
+    float GetPenetration(const AABB &entity, const AABB &block, const Vector3f &delta);
 
 private:
     float m_Gravity = 28.0f;
