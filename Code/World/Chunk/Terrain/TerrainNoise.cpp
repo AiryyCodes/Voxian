@@ -8,7 +8,6 @@
 #include <cassert>
 #include <fstream>
 #include <glaze/json/generic.hpp>
-#include <threads.h>
 
 void TerrainNoise::Init()
 {

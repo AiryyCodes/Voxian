@@ -36,6 +36,9 @@ ChunkSnapshot Chunk::CreateSnapshot() const
 {
     ChunkSnapshot snapshot;
 
+    size_t totalSize = PADDED_CHUNK_SIZE * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE;
+    snapshot.Blocks.resize(totalSize);
+
     // Copy block data
     for (int x = 0; x < PADDED_CHUNK_SIZE; x++)
         for (int z = 0; z < PADDED_CHUNK_SIZE; z++)

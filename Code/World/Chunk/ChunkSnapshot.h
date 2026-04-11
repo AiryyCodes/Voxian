@@ -3,12 +3,12 @@
 #include "World/Block/BlockProperties.h"
 #include "World/Entity/Component/Chunk/ChunkGenerator.h"
 
-#include <array>
+#include <cstdint>
 #include <vector>
 
 struct ChunkSnapshot
 {
-    std::array<uint16_t, PADDED_CHUNK_SIZE * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE> Blocks = {};
+    std::vector<uint16_t> Blocks = {};
     std::vector<struct BlockProperties> BlockProperties; // indexed by blockId
 
     uint16_t GetBlock(int x, int y, int z) const

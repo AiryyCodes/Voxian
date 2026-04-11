@@ -8,6 +8,14 @@ Window::Window(const std::string &title, int width, int height)
     glfwDefaultWindowHints();
     glfwWindowHint(GLFW_SAMPLES, 4);
 
+#ifdef __APPLE__
+    /* We need to explicitly ask for a 4.1 context on OS X */
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
+
     m_Handle = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!m_Handle)
     {

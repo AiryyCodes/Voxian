@@ -20,21 +20,25 @@ void BlockRegistry::Init()
     // Manually register air block to ensure it always has ID 0
     RegisterBlock("air", CreateScope<Block>(BlockProperties().SetAir(true)));
 
+    std::vector<std::filesystem::path> paths;
+    for (const auto &entry : std::filesystem::directory_iterator("Assets/Blocks"))
+        if (entry.path().extension() == ".json" && entry.path().filename() != "air.json")
+            paths.push_back(entry.path());
+
+    std::sort(paths.begin(), paths.end());
+
     // Read all blocks from JSON file and register them
     // Iterate through Blocks folder
-    for (const auto &entry : std::filesystem::directory_iterator("Assets/Blocks"))
+    for (const auto &path : paths)
     {
-        if (entry.path().filename() == "air.json")
-            continue; // Skip air block since it's already registered
+        LOG_INFO("Loading block data: {}", path.string());
 
-        LOG_INFO("Loading block data: {}", entry.path().string());
-
-        if (entry.path().extension() == ".json")
+        if (path.extension() == ".json")
         {
-            std::ifstream file(entry.path());
+            std::ifstream file(path);
             if (!file.is_open())
             {
-                LOG_ERROR("Failed to open file: {}", entry.path().string());
+                LOG_ERROR("Failed to open file: {}", path.string());
                 continue;
             }
 
@@ -43,13 +47,13 @@ void BlockRegistry::Init()
             auto blockData = glz::read_json<BlockData>(jsonContent);
             if (!blockData)
             {
-                LOG_ERROR("Failed to parse block data from file: {}", entry.path().string());
+                LOG_ERROR("Failed to parse block data from file: {}", path.string());
                 continue;
             }
 
             if (!blockData->Validate())
             {
-                LOG_ERROR("Validation failed for block data in file: {}", entry.path().string());
+                LOG_ERROR("Validation failed for block data in file: {}", path.string());
                 continue;
             }
 

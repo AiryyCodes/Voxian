@@ -30,7 +30,7 @@ void ChunkManager::Init()
 void ChunkManager::Update(float delta)
 {
     // Register all chunks from the last frame
-    for (Chunk *chunk : m_ChunksReadyToRegister)
+    for (Ref<Chunk> chunk : m_ChunksReadyToRegister)
     {
         m_World.RegisterEntity(chunk);
     }
@@ -84,7 +84,7 @@ void ChunkManager::Update(float delta)
 
 void ChunkManager::QueueChunk(Vector2i chunkPos)
 {
-    Chunk *chunk = new Chunk(chunkPos);
+    auto chunk = CreateRef<Chunk>(chunkPos);
 
     auto future = m_ThreadPool.submit_task([this, chunk, noiseCopy = m_Noise]()
                                            {
@@ -134,7 +134,7 @@ void ChunkManager::UnloadChunks(int renderDistance, Vector2i playerChunkPos)
     }
     for (const auto &pos : chunksToUnload)
     {
-        m_World.DestroyEntity(m_Chunks[pos]);
+        m_World.DestroyEntity(m_Chunks[pos].get());
         m_Chunks.erase(pos);
     }
 
@@ -147,7 +147,7 @@ void ChunkManager::UnloadChunks(int renderDistance, Vector2i playerChunkPos)
         {
             if (it->second.MeshDataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
-                m_World.DestroyEntity(it->second.Chunk);
+                m_World.DestroyEntity(it->second.Chunk.get());
                 it = m_PendingChunks.erase(it);
             }
             else
@@ -172,7 +172,7 @@ const Block *ChunkManager::GetBlock(int x, int y, int z) const
     if (it == m_Chunks.end())
         return nullptr;
 
-    Chunk *chunk = it->second;
+    Ref<Chunk> chunk = it->second;
 
     int localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     int localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;

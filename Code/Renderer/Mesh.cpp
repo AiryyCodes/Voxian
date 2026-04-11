@@ -20,12 +20,7 @@ void Mesh::Init(const void *data, size_t dataSize, std::initializer_list<AttribE
 {
     glBindVertexArray(m_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-
-    // Allocate once with persistent mapping — no more stalls
-    GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-    glBufferStorage(GL_ARRAY_BUFFER, dataSize, nullptr, flags);
-    void *mapped = glMapBufferRange(GL_ARRAY_BUFFER, 0, dataSize, flags);
-    memcpy(mapped, data, dataSize); // just a memcpy, no GPU stall
+    glBufferData(GL_ARRAY_BUFFER, dataSize, data, GL_STATIC_DRAW);
 
     int stride = 0;
     for (const auto &element : layout)

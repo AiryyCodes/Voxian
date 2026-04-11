@@ -1,4 +1,4 @@
-#version 420 core
+#version 410 core
 
 layout(location = 0) in uint Data1;
 layout(location = 1) in uint Data2;

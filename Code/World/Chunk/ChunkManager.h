@@ -18,7 +18,7 @@ class World;
 struct PendingChunk
 {
     std::future<ChunkMeshData> MeshDataFuture;
-    class Chunk *Chunk;
+    Ref<Chunk> Chunk;
 };
 
 class ChunkManager
@@ -45,13 +45,13 @@ private:
 
     World &m_World;
 
-    std::unordered_map<Vector2i, Chunk *> m_Chunks;
+    std::unordered_map<Vector2i, Ref<Chunk>> m_Chunks;
     std::unordered_map<Vector2i, PendingChunk> m_PendingChunks;
     std::deque<Vector2i> m_ChunkLoadQueue;
 
     Vector2i m_LastPlayerChunkPos = {INT_MAX, INT_MAX};
     std::unordered_set<Vector2i> m_InQueue;
-    std::vector<Chunk *> m_ChunksReadyToRegister;
+    std::vector<Ref<Chunk>> m_ChunksReadyToRegister;
 
     Ref<TextureArray2D> m_ChunkTextureArray;
 
