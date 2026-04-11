@@ -3,6 +3,7 @@
 #include "Chunk/ChunkManager.h"
 #include "Util/Memory.h"
 #include "Renderer/Renderer.h"
+#include "World/Block/Block.h"
 #include "World/Entity/Entity.h"
 #include "World/Entity/Player.h"
 #include "World/Entity/Component/Camera.h"
@@ -38,6 +39,8 @@ public:
     }
 
     void DestroyEntity(Entity *entity);
+
+    const Block *GetBlock(int x, int y, int z) const;
 
     void SetActiveCamera(Camera *camera) { m_ActiveCamera = camera; }
     Camera *GetActiveCamera() { return m_ActiveCamera; }

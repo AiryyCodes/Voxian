@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Math/Vector.h"
+#include "Physics/AABB.h"
 #include "Util/Memory.h"
 #include "Renderer/Renderer.h"
 #include "World/Entity/Component/Component.h"
@@ -58,6 +60,11 @@ public:
         assert(HasComponent<T>() && "Entity does not have this component!");
         m_Components.at(typeid(T).hash_code())->OnDetach();
         m_Components.erase(typeid(T).hash_code());
+    }
+
+    virtual AABB GetAABB() const
+    {
+        return {Vector3f(0, 0, 0), Vector3f(0, 0, 0)};
     }
 
     const std::string &GetName() const { return m_Name; }

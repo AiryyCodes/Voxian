@@ -9,6 +9,8 @@ Matrix4 Camera::GetViewMatrix() const
 {
     auto &transform = GetOwner().GetComponent<Transform>();
 
+    Vector3f eyePos = transform.Position + Vector3f(0.0f, 1.62f, 0.0f);
+
     Matrix4 view(1.0f);
 
     // Apply rotations: yaw from player, pitch from camera
@@ -20,7 +22,7 @@ Matrix4 Camera::GetViewMatrix() const
     view = glm::rotate(view, -yaw, Vector3f(0.0f, 1.0f, 0.0f));
 
     // Translate to camera position
-    view = glm::translate(view, -transform.Position);
+    view = glm::translate(view, -eyePos);
 
     return view;
 }

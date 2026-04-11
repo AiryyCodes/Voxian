@@ -1,7 +1,10 @@
 #include "World/Entity/Player.h"
 #include "Engine.h"
 #include "Input.h"
+#include "Math/Vector.h"
+#include "Physics/AABB.h"
 #include "World/Entity/Component/Chunk/ChunkGenerator.h"
+#include "World/Entity/Component/EntityPhysics.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Component/Camera.h"
 #include "World/Entity/Entity.h"
@@ -11,12 +14,14 @@ Player::Player()
     : Entity("Player")
 {
     auto &transform = AddComponent<Transform>();
-    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_HEIGHT - 64 + 4.0f, CHUNK_SIZE / 2.0f);
+    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_HEIGHT - 64 + 32.0f, CHUNK_SIZE / 2.0f);
 
     Input &input = EngineContext::GetInput();
     input.SetCursorMode(GLFW_CURSOR_DISABLED);
 
     AddComponent<PlayerInput>();
+    AddComponent<EntityPhysics>();
+
     AddComponent<Camera>(70.0f);
 }
 
@@ -98,4 +103,13 @@ void PlayerInput::OnUpdate(float delta)
         camera.SetPitch(89.0f);
     if (currentPitch < -89.0f)
         camera.SetPitch(-89.0f);
+}
+
+AABB Player::GetAABB() const
+{
+    const Transform &transform = GetComponent<Transform>();
+    return {
+        transform.Position + Vector3f(-0.3f, 0.0f, -0.3f),
+        transform.Position + Vector3f(0.3f, 1.8f, 0.3f),
+    };
 }

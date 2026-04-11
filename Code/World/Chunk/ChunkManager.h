@@ -29,6 +29,8 @@ public:
     void Init();
     void Update(float delta);
 
+    const Block *GetBlock(int x, int y, int z) const;
+
     const TerrainNoise &GetTerrainNoise() const { return m_Noise; }
 
 private:

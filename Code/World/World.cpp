@@ -42,3 +42,8 @@ void World::DestroyEntity(Entity *entity)
         m_Entities.pop_back();
     }
 }
+
+const Block *World::GetBlock(int x, int y, int z) const
+{
+    return m_ChunkManager.GetBlock(x, y, z);
+}

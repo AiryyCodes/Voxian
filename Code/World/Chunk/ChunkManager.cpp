@@ -5,11 +5,13 @@
 #include "Renderer/Texture.h"
 #include "Util/Memory.h"
 #include "World/Block/BlockRegistry.h"
+#include "World/Entity/Component/Chunk/ChunkGenerator.h"
 #include "World/Entity/Component/Chunk/ChunkMeshGenerator.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Player.h"
 #include "World/World.h"
 
+#include <cstdint>
 #include <future>
 #include <utility>
 #include <vector>
@@ -160,4 +162,21 @@ void ChunkManager::UnloadChunks(int renderDistance, Vector2i playerChunkPos)
                        { return std::abs(pos.x - playerChunkPos.x) > renderDistance ||
                                 std::abs(pos.y - playerChunkPos.y) > renderDistance; }),
         m_ChunkLoadQueue.end());
+}
+
+const Block *ChunkManager::GetBlock(int x, int y, int z) const
+{
+    int chunkX = (x >= 0) ? (x / CHUNK_SIZE) : ((x - CHUNK_SIZE + 1) / CHUNK_SIZE);
+    int chunkZ = (z >= 0) ? (z / CHUNK_SIZE) : ((z - CHUNK_SIZE + 1) / CHUNK_SIZE);
+    auto it = m_Chunks.find(Vector2i(chunkX, chunkZ));
+    if (it == m_Chunks.end())
+        return nullptr;
+
+    Chunk *chunk = it->second;
+
+    int localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    int localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+
+    uint16_t blockId = chunk->GetBlock(localX, y, localZ);
+    return EngineContext::GetBlockRegistry().GetBlockByIndex(blockId);
 }

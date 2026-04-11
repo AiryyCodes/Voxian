@@ -1,4 +1,5 @@
 #include "World/Entity/Entity.h"
+#include "Physics/AABB.h"
 #include "Renderer/Renderer.h"
 
 void Entity::Update(float delta)
