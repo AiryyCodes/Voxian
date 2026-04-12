@@ -27,9 +27,8 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
             float worldZ = static_cast<float>(worldZ_int);
 
             const BiomeConfig *biome = noise.SelectBiome(worldX, worldZ);
-            float raw = noise.GetNoise(worldX, worldZ, biome);
-            float curved = noise.ApplyCurve(raw, biome);
-            int surfaceY = (int)(curved * (config.HeightRange.Max - config.HeightRange.Min) + config.HeightRange.Min);
+            float blendedHeight = noise.GetBlendedHeight(worldX, worldZ);
+            int surfaceY = (int)(blendedHeight * (config.HeightRange.Max - config.HeightRange.Min) + config.HeightRange.Min);
 
             for (int y = 0; y < PADDED_CHUNK_HEIGHT; ++y)
             {

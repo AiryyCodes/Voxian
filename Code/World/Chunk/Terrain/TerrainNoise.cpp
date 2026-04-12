@@ -90,6 +90,62 @@ float TerrainNoise::GetNoiseCurved(float worldX, float worldZ) const
     return ApplyCurve(GetNoise(worldX, worldZ, biome), biome);
 }
 
+float TerrainNoise::GetBlendedHeight(float x, float z) const
+{
+    static const std::pair<float, float> offsets[] = {
+        {0.0f, 0.0f},
+        {8.0f, 0.0f},
+        {-8.0f, 0.0f},
+        {0.0f, 8.0f},
+        {0.0f, -8.0f},
+        {6.0f, 6.0f},
+        {-6.0f, 6.0f},
+        {6.0f, -6.0f},
+        {-6.0f, -6.0f},
+    };
+    static const float weights[] = {
+        0.25f,
+        0.09375f,
+        0.09375f,
+        0.09375f,
+        0.09375f,
+        0.0625f,
+        0.0625f,
+        0.0625f,
+        0.0625f,
+    };
+
+    // Blend raw noise values first
+    float blendedNoise = 0.0f;
+    const BiomeConfig *centerBiome = SelectBiome(x, z);
+
+    for (int i = 0; i < 9; i++)
+    {
+        float sx = x + offsets[i].first;
+        float sz = z + offsets[i].second;
+        const BiomeConfig *biome = SelectBiome(sx, sz);
+        float raw = GetNoise(sx, sz, biome);
+        blendedNoise += raw * weights[i];
+    }
+
+    float blendedBase = 0.0f;
+    for (int i = 0; i < 9; i++)
+    {
+        float sx = x + offsets[i].first;
+        float sz = z + offsets[i].second;
+        const BiomeConfig *biome = SelectBiome(sx, sz);
+        float raw = GetNoise(sx, sz, biome);
+        float base = ApplyCurve(0.5f, biome); // each biome's "sea level" height
+        blendedBase += base * weights[i];
+    }
+
+    // Offset the final height by the difference from center biome's base
+    float centerBase = ApplyCurve(0.5f, centerBiome);
+    float finalHeight = ApplyCurve(blendedNoise, centerBiome) + (blendedBase - centerBase);
+
+    return std::clamp(finalHeight, 0.0f, 1.0f);
+}
+
 float TerrainNoise::ApplyCurve(float t, const BiomeConfig *biome) const
 {
     assert(biome && !biome->HeightCurve.empty());

@@ -59,6 +59,8 @@ public:
     float GetNoise(float worldX, float worldZ, const BiomeConfig *biome) const;
     float GetNoiseCurved(float worldX, float worldZ) const;
 
+    float GetBlendedHeight(float x, float z) const;
+
     float ApplyCurve(float t, const BiomeConfig *biome) const;
 
     const BiomeConfig *SelectBiome(float x, float z) const;

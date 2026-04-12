@@ -49,7 +49,7 @@
         },
         {
             "Block": "dirt",
-            "Condition": "BelowSurface",
+            "Condition": "AtSurface",
             "MaxDepth": 4,
             "Priority": 1
         }
