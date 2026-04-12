@@ -49,7 +49,7 @@ void ChunkManager::Update(float delta)
     {
         int renderDistance = player->GetRenderDistance();
 
-        // 1. Discover new chunks
+        // Discover new chunks
         for (int x = -renderDistance; x <= renderDistance; x++)
         {
             for (int z = -renderDistance; z <= renderDistance; z++)

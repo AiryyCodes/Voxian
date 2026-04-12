@@ -19,9 +19,6 @@ void EntityPhysics::OnUpdate(float delta)
     MoveAndCollide(Vector3f(m_Velocity.x * delta, 0, 0));
     MoveAndCollide(Vector3f(0, m_Velocity.y * delta, 0));
     MoveAndCollide(Vector3f(0, 0, m_Velocity.z * delta));
-
-    m_Velocity.x *= m_IsOnGround ? 0.55f : 0.91f;
-    m_Velocity.z *= m_IsOnGround ? 0.55f : 0.91f;
 }
 
 void EntityPhysics::MoveAndCollide(Vector3f delta)

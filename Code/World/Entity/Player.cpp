@@ -45,22 +45,19 @@ void SpawnController::OnUpdate(float delta)
     int chunkX = static_cast<int>(floor(transform.Position.x / CHUNK_SIZE));
     int chunkZ = static_cast<int>(floor(transform.Position.z / CHUNK_SIZE));
 
-    // 1. Check if the chunk under the player is ready
+    // Check if the chunk under the player is ready
     if (chunkManager.IsChunkLoaded(chunkX, chunkZ))
     {
         auto chunk = chunkManager.GetChunk(chunkX, chunkZ);
 
-        // 2. Find the ground and place the player
+        // Find the ground and place the player
         int groundY = chunk->GetTopBlockY(8, 8);
-        transform.Position.y = static_cast<float>(groundY) + 2.0f;
+        transform.Position.y = static_cast<float>(groundY) + 0.0f;
 
-        // 3. Enable gravity/physics on the player
+        // Enable physics on the player
         GetOwner().GetComponent<EntityPhysics>().SetEnabled(true);
 
-        // 4. Mission accomplished: Remove this component so it never runs again
-        Destroy();
-
-        LOG_INFO("SpawnAnchor: Player placed and physics enabled. Self-destructing.");
+        Component::Destroy();
     }
     else
     {
@@ -100,28 +97,34 @@ void PlayerInput::OnUpdate(float delta)
     if (input.IsKeyDown(GLFW_KEY_D))
         movement += right;
 
-    float targetSpeed = m_Speed;
+    Vector3f vel = physics.GetVelocity();
+    bool onGround = physics.IsOnGround();
+    bool sprinting = input.IsKeyDown(GLFW_KEY_LEFT_SHIFT) && glm::length(movement) > 0.f;
+    float targetSpeed = sprinting ? m_SprintSpeed : m_Speed;
 
-    bool sprinting = input.IsKeyDown(GLFW_KEY_LEFT_SHIFT);
-    if (sprinting)
-        targetSpeed = m_SprintSpeed;
-
-    float targetFov = sprinting ? camera.GetBaseFOV() + 15.0f : camera.GetBaseFOV();
-    camera.SetFOV(glm::mix(camera.GetFOV(), targetFov, delta * 10.0f));
-
-    // Apply XZ velocity directly (friction in EntityPhysics handles deceleration)
     if (glm::length(movement) > 0.f)
     {
         glm::vec3 dir = glm::normalize(movement);
-        physics.SetVelocity(Vector3f(
-            dir.x * targetSpeed,
-            physics.GetVelocity().y, // preserve Y so gravity isn't wiped
-            dir.z * targetSpeed));
+        float accel = onGround ? 16.0f : 4.0f;
+        vel.x = glm::mix(vel.x, dir.x * targetSpeed, glm::min(accel * delta, 1.0f));
+        vel.z = glm::mix(vel.z, dir.z * targetSpeed, glm::min(accel * delta, 1.0f));
+    }
+    else
+    {
+        float decel = onGround ? 16.0f : 0.0f;
+        vel.x = glm::mix(vel.x, 0.0f, glm::min(decel * delta, 1.0f));
+        vel.z = glm::mix(vel.z, 0.0f, glm::min(decel * delta, 1.0f));
     }
 
     // Jump
-    if (input.IsKeyDown(GLFW_KEY_SPACE) && physics.IsOnGround())
-        physics.SetVelocity(Vector3f(physics.GetVelocity().x, m_JumpForce, physics.GetVelocity().z));
+    if (input.IsKeyDown(GLFW_KEY_SPACE) && onGround)
+        vel.y = m_JumpForce;
+
+    physics.SetVelocity(Vector3f(vel.x, vel.y, vel.z));
+
+    // FOV
+    float targetFov = sprinting ? camera.GetBaseFOV() + 15.0f : camera.GetBaseFOV();
+    camera.SetFOV(glm::mix(camera.GetFOV(), targetFov, delta * 15.0f));
 
     // Mouse look
     static bool firstMouse = true;
