@@ -145,11 +145,11 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
 float ChunkMeshGenerator::GetOcclusion(bool side1, bool side2, bool corner)
 {
     if (side1 && side2 && corner)
-        return 0.25f;
+        return 0.4f;
     if (side1 && side2)
-        return 0.5f;
+        return 0.6f;
     if (side1 || side2 || corner)
-        return 0.75f;
+        return 0.8f;
     return 1.0f;
 }
 
