@@ -6,6 +6,6 @@
 
 namespace NoiseFactory
 {
-FastNoiseLite BuildNoise(const TerrainConfig &config);
-FastNoiseLite BuildDomainWarp(const TerrainConfig &config);
+FastNoiseLite BuildNoise(const NoiseLayerConfig &config);
+FastNoiseLite BuildDomainWarp(const NoiseLayerConfig &config);
 } // namespace NoiseFactory

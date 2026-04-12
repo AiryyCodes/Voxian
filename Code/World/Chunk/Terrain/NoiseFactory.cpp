@@ -1,27 +1,24 @@
 #include "NoiseFactory.h"
+#include "TerrainNoise.h"
 
-FastNoiseLite NoiseFactory::BuildNoise(const TerrainConfig &config)
+FastNoiseLite NoiseFactory::BuildNoise(const NoiseLayerConfig &layer)
 {
-    // TODO: Make the seed not hard-coded
-    FastNoiseLite noise(1337);
-    noise.SetFrequency(config.Frequency);
-    noise.SetNoiseType(config.NoiseType);
-    noise.SetFractalType(config.FractalType);
-    noise.SetFractalOctaves(config.Octaves);
-    noise.SetFractalLacunarity(config.Lacunarity);
-    noise.SetFractalGain(config.Gain);
-    noise.SetFractalWeightedStrength(config.WeightedStrength);
-
+    FastNoiseLite noise;
+    noise.SetNoiseType(layer.NoiseType);
+    noise.SetFractalType(layer.FractalType);
+    noise.SetFrequency(layer.Frequency);
+    noise.SetFractalOctaves(layer.Octaves);
+    noise.SetFractalLacunarity(layer.Lacunarity);
+    noise.SetFractalGain(layer.Gain);
+    noise.SetFractalWeightedStrength(layer.WeightedStrength);
     return noise;
 }
 
-FastNoiseLite NoiseFactory::BuildDomainWarp(const TerrainConfig &cfg)
+FastNoiseLite NoiseFactory::BuildDomainWarp(const NoiseLayerConfig &layer)
 {
-    FastNoiseLite warp(1337);
-
-    warp.SetDomainWarpType(cfg.DomainWarpType);
-    warp.SetDomainWarpAmp(cfg.DomainWarpAmp);
-    warp.SetFractalType(FastNoiseLite::FractalType_DomainWarpProgressive);
-
+    FastNoiseLite warp;
+    warp.SetDomainWarpType(layer.DomainWarpType);
+    warp.SetDomainWarpAmp(layer.DomainWarpAmp);
+    warp.SetFrequency(layer.Frequency);
     return warp;
 }

@@ -19,7 +19,7 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
     {
         for (int z = 0; z < PADDED_CHUNK_SIZE; ++z)
         {
-            float noiseVal = noise.GetNoise(
+            float noiseVal = noise.GetNoiseCurved(
                 (float)(origin.x + x),
                 (float)(origin.z + z));
 
@@ -45,7 +45,7 @@ uint16_t ChunkGenerator::ResolveBlock(const TerrainConfig &config, int worldY, i
     const bool isBottom = worldY == 0;
     const bool isAbove = worldY > surfaceY;
 
-    for (const auto &layer : config.Layers)
+    for (const auto &layer : config.BlockLayers)
     {
         if (layer.RequiresBelowSeaLevel && !belowSea)
             continue;
