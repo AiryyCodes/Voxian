@@ -9,7 +9,9 @@ public:
     void OnUpdate(float delta) override;
 
 private:
-    float m_Speed = 5.0f;
+    float m_Speed = 4.3f;
+    float m_SprintSpeed = 5.6f;
+
     float m_JumpForce = 9.0f;
 };
 

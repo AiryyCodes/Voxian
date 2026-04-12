@@ -73,6 +73,7 @@ void PlayerInput::OnUpdate(float delta)
 {
     auto &transform = GetOwner().GetComponent<Transform>();
     auto &physics = GetOwner().GetComponent<EntityPhysics>();
+    auto &camera = GetOwner().GetComponent<Camera>();
     Input &input = EngineContext::GetInput();
 
     // Get forward/right from player yaw only (ignore pitch for movement)
@@ -99,14 +100,23 @@ void PlayerInput::OnUpdate(float delta)
     if (input.IsKeyDown(GLFW_KEY_D))
         movement += right;
 
+    float targetSpeed = m_Speed;
+
+    bool sprinting = input.IsKeyDown(GLFW_KEY_LEFT_SHIFT);
+    if (sprinting)
+        targetSpeed = m_SprintSpeed;
+
+    float targetFov = sprinting ? camera.GetBaseFOV() + 15.0f : camera.GetBaseFOV();
+    camera.SetFOV(glm::mix(camera.GetFOV(), targetFov, delta * 10.0f));
+
     // Apply XZ velocity directly (friction in EntityPhysics handles deceleration)
     if (glm::length(movement) > 0.f)
     {
         glm::vec3 dir = glm::normalize(movement);
         physics.SetVelocity(Vector3f(
-            dir.x * m_Speed,
+            dir.x * targetSpeed,
             physics.GetVelocity().y, // preserve Y so gravity isn't wiped
-            dir.z * m_Speed));
+            dir.z * targetSpeed));
     }
 
     // Jump
@@ -131,7 +141,6 @@ void PlayerInput::OnUpdate(float delta)
 
     transform.Rotation.y -= xOffset;
 
-    auto &camera = GetOwner().GetComponent<Camera>();
     float pitch = glm::clamp(camera.GetPitch() + yOffset, -89.f, 89.f);
     camera.SetPitch(pitch);
 }

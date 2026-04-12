@@ -7,7 +7,7 @@ class Camera : public Component
 {
 public:
     Camera(float fov = 45.0f, float aspect = 16.0f / 9.0f, float near = 0.1f, float far = 500.0f)
-        : m_FOV(fov), m_AspectRatio(aspect), m_NearPlane(near), m_FarPlane(far)
+        : m_FOV(fov), m_BaseFOV(fov), m_AspectRatio(aspect), m_NearPlane(near), m_FarPlane(far)
     {
         UpdateProjectionMatrix();
     }
@@ -15,6 +15,11 @@ public:
     void SetFOV(float fov)
     {
         m_FOV = fov;
+        UpdateProjectionMatrix();
+    }
+    void SetBaseFOV(float fov)
+    {
+        m_BaseFOV = fov;
         UpdateProjectionMatrix();
     }
 
@@ -37,6 +42,8 @@ public:
     }
 
     float GetFOV() const { return m_FOV; }
+    float GetBaseFOV() const { return m_BaseFOV; }
+
     float GetAspectRatio() const { return m_AspectRatio; }
     float GetNearPlane() const { return m_NearPlane; }
     float GetFarPlane() const { return m_FarPlane; }
@@ -52,6 +59,8 @@ private:
 
 private:
     float m_FOV;
+    float m_BaseFOV = 70.0f;
+
     float m_AspectRatio;
     float m_NearPlane;
     float m_FarPlane;
