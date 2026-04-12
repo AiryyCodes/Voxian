@@ -16,7 +16,7 @@ Player::Player()
     : Entity("Player")
 {
     auto &transform = AddComponent<Transform>();
-    transform.Position = Vector3f(CHUNK_SIZE / 2.0f, CHUNK_HEIGHT - 64, CHUNK_SIZE / 2.0f);
+    transform.Position = Vector3f(CHUNK_SIZE / 2.0f + 0.5f, 0.0f, CHUNK_SIZE / 2.0f + 0.5f);
 
     Input &input = EngineContext::GetInput();
     input.SetCursorMode(GLFW_CURSOR_DISABLED);
@@ -52,7 +52,7 @@ void SpawnController::OnUpdate(float delta)
 
         // Find the ground and place the player
         int groundY = chunk->GetTopBlockY(8, 8);
-        transform.Position.y = static_cast<float>(groundY) + 0.0f;
+        transform.Position.y = static_cast<float>(groundY);
 
         // Enable physics on the player
         GetOwner().GetComponent<EntityPhysics>().SetEnabled(true);
