@@ -28,6 +28,8 @@ int main()
     engine.GetBlockRegistry().Init();
     Blocks::AssignAll(engine.GetBlockRegistry());
 
+    engine.GetBiomeRegistry().LoadAll("Assets/Biomes");
+
     World &world = engine.GetWorld();
     world.Init();
 

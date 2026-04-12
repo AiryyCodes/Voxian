@@ -1,7 +1,7 @@
 #include "ChunkGenerator.h"
 #include "Math/Vector.h"
-#include "Math/Math.h"
 #include "World/Block/Blocks.h"
+#include "World/Chunk/Terrain/Biome/BiomeConfig.h"
 #include "World/Chunk/Terrain/TerrainNoise.h"
 #include "World/Entity/Chunk.h"
 #include "World/Entity/Component/Chunk/ChunkGenerator.h"
@@ -11,7 +11,9 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
 {
     Chunk &chunk = static_cast<Chunk &>(GetOwner());
 
-    Vector3i origin = chunk.GetWorldPosition();
+    // Chunk blocks are stored with a 1-block padding on every side.
+    // Subtracting (1,1,1) lets x/z border cells sample the neighboring world coordinates.
+    Vector3i origin = chunk.GetWorldPosition() - Vector3i(1, 1, 1);
 
     const TerrainConfig &config = noise.GetConfig();
 
@@ -19,61 +21,72 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
     {
         for (int z = 0; z < PADDED_CHUNK_SIZE; ++z)
         {
-            float noiseVal = noise.GetNoiseCurved(
-                (float)(origin.x + x),
-                (float)(origin.z + z));
+            int worldX_int = origin.x + x;
+            int worldZ_int = origin.z + z;
+            float worldX = static_cast<float>(worldX_int);
+            float worldZ = static_cast<float>(worldZ_int);
 
-            int surfaceY = static_cast<int>(Math::Remap(
-                noiseVal, -1.0f, 1.0f,
-                0.0f,
-                static_cast<float>(PADDED_CHUNK_HEIGHT)));
+            const BiomeConfig *biome = noise.SelectBiome(worldX, worldZ);
+            float raw = noise.GetNoise(worldX, worldZ, biome);
+            float curved = noise.ApplyCurve(raw, biome);
+            int surfaceY = (int)(curved * (config.HeightRange.Max - config.HeightRange.Min) + config.HeightRange.Min);
 
             for (int y = 0; y < PADDED_CHUNK_HEIGHT; ++y)
             {
                 int worldY = origin.y + y;
-                uint16_t resolvedBlock = ResolveBlock(config, worldY, surfaceY);
+                if (worldY < 0)
+                {
+                    chunk.m_Blocks.SetId(x, y, z, Blocks::AIR);
+                    continue;
+                }
+
+                uint16_t resolvedBlock = ResolveBlock(worldY, surfaceY, config.SeaLevel, *biome);
                 chunk.m_Blocks.SetId(x, y, z, resolvedBlock);
             }
         }
     }
 }
 
-uint16_t ChunkGenerator::ResolveBlock(const TerrainConfig &config, int worldY, int surfaceY) const
+uint16_t ChunkGenerator::ResolveBlock(int y, int surfaceY, int seaLevel, const BiomeConfig &biome) const
 {
-    const int depth = surfaceY - worldY;
-    const bool belowSea = worldY < config.SeaLevel;
-    const bool isBottom = worldY == 0;
-    const bool isAbove = worldY > surfaceY;
+    int depthFromSurface = surfaceY - y;
 
-    for (const auto &layer : config.BlockLayers)
+    for (auto &layer : biome.BlockLayers) // already sorted by Priority
     {
-        if (layer.RequiresBelowSeaLevel && !belowSea)
+        // height bounds check
+        if (layer.MinHeight != -1 && y < layer.MinHeight)
+            continue;
+        if (layer.MaxHeight != -1 && y > layer.MaxHeight)
+            continue;
+
+        // sea level check
+        if (layer.RequiresBelowSeaLevel && y > seaLevel)
             continue;
 
         switch (layer.Condition)
         {
         case LayerCondition::AtBottom:
-            if (!isBottom)
-                continue;
+            if (y == 0)
+                return layer.BlockIndex;
             break;
-        case LayerCondition::BelowSeaLevel:
-            if (!isAbove || !belowSea)
-                continue;
-            break;
+
         case LayerCondition::AtSurface:
-            if (depth != 0)
-                continue;
+            if (y == surfaceY)
+                return layer.BlockIndex;
             break;
+
         case LayerCondition::BelowSurface:
-            if (depth <= 0)
-                continue;
-            if (layer.MaxDepth >= 0 && depth > layer.MaxDepth)
-                continue;
+            if (depthFromSurface > 0)
+                if (layer.MaxDepth == -1 || depthFromSurface <= layer.MaxDepth)
+                    return layer.BlockIndex;
+            break;
+
+        case LayerCondition::BelowSeaLevel:
+            if (y < seaLevel && y < surfaceY)
+                return layer.BlockIndex;
             break;
         }
-
-        return layer.BlockIndex;
     }
 
-    return Blocks::AIR;
+    return Blocks::AIR; // above surface
 }

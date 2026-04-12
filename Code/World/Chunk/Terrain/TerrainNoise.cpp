@@ -1,27 +1,36 @@
 #include "TerrainNoise.h"
+#include "Biome/BiomeConfig.h"
 #include "Engine.h"
-#include "FastNoiseLite.h"
 #include "Logger.h"
-#include "NoiseFactory.h"
 
 #include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <glaze/json/generic.hpp>
+#include <string>
+#include <FastNoiseLite.h>
+
+static FastNoiseLite BuildClimateNoise(const ClimateMapConfig &config)
+{
+    FastNoiseLite noise;
+    noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+    noise.SetFrequency(config.Frequency);
+    noise.SetFractalOctaves(config.Octaves);
+    return noise;
+}
 
 void TerrainNoise::Init()
 {
     m_Config = Load("Assets/Terrain.json");
+    m_ClimateSamplers.clear();
 
-    m_NoisePairs.clear();
-    for (const auto &layerCfg : m_Config.NoiseLayers)
+    for (const auto &map : m_Config.ClimateMaps)
     {
-        NoisePair pair;
-        pair.noise = NoiseFactory::BuildNoise(layerCfg);
-        pair.domainWarp = NoiseFactory::BuildDomainWarp(layerCfg);
-        pair.useDomainWarp = layerCfg.UseDomainWarp;
-        pair.weight = layerCfg.Weight;
-        m_NoisePairs.push_back(pair);
+        ClimateNoise sampler;
+        sampler.Name = map.Name;
+        sampler.Noise = BuildClimateNoise(map);
+        m_ClimateSamplers.push_back(std::move(sampler));
     }
 }
 
@@ -44,58 +53,47 @@ TerrainConfig TerrainNoise::Load(const std::string &path)
         assert(false);
     }
 
-    for (auto &layer : config->BlockLayers)
-        layer.BlockIndex = EngineContext::GetBlockRegistry().GetBlockIndexById(layer.Block);
-
-    std::sort(config->BlockLayers.begin(), config->BlockLayers.end(),
-              [](const BlockLayerConfig &a, const BlockLayerConfig &b)
-              {
-                  return a.Priority < b.Priority;
-              });
-
     return *config;
 }
 
-float TerrainNoise::GetNoise(float worldX, float worldZ) const
+float TerrainNoise::GetNoise(float worldX, float worldZ, const BiomeConfig *biome) const
 {
+    if (!biome || biome->NoisePairs.empty())
+    {
+        LOG_WARNING("Biome '{}' has no noise layers", biome ? biome->Id : "null");
+        return 0.5f;
+    }
+
     float combined = 0.0f;
     float totalWeight = 0.0f;
 
-    for (size_t i = 0; i < m_NoisePairs.size(); i++)
+    for (size_t i = 0; i < biome->NoisePairs.size(); i++)
     {
-        // Domain warp must operate on a local copy of coordinates
         float x = worldX, z = worldZ;
-
-        if (m_NoisePairs[i].useDomainWarp)
+        if (biome->NoisePairs[i].useDomainWarp)
         {
-            // DomainWarp() is non-const, so we cache per-thread
-            thread_local std::vector<FastNoiseLite> localWarps;
-            if (localWarps.size() <= i)
-                localWarps.resize(i + 1, m_NoisePairs[i].domainWarp);
-            localWarps[i].DomainWarp(x, z);
+            FastNoiseLite warper = biome->NoisePairs[i].domainWarp;
+            warper.DomainWarp(x, z);
         }
-
-        float sample = m_NoisePairs[i].noise.GetNoise(x, z); // [-1, 1]
-        combined += sample * m_NoisePairs[i].weight;
-        totalWeight += m_NoisePairs[i].weight;
+        combined += biome->NoisePairs[i].noise.GetNoise(x, z) * biome->NoisePairs[i].weight;
+        totalWeight += biome->NoisePairs[i].weight;
     }
 
-    if (totalWeight == 0.0f)
-        return 0.5f;
-
-    float normalized = (combined / totalWeight) * 0.5f + 0.5f; // [0, 1]
+    float normalized = (combined / totalWeight) * 0.5f + 0.5f;
     return std::clamp(normalized, 0.0f, 1.0f);
 }
 
 // Returns noise with height curve applied, still in [0, 1]
 float TerrainNoise::GetNoiseCurved(float worldX, float worldZ) const
 {
-    return ApplyCurve(GetNoise(worldX, worldZ));
+    const BiomeConfig *biome = SelectBiome(worldX, worldZ);
+    return ApplyCurve(GetNoise(worldX, worldZ, biome), biome);
 }
 
-float TerrainNoise::ApplyCurve(float t) const
+float TerrainNoise::ApplyCurve(float t, const BiomeConfig *biome) const
 {
-    const auto &curve = m_Config.HeightCurve;
+    assert(biome && !biome->HeightCurve.empty());
+    const auto &curve = biome->HeightCurve;
     if (curve.size() < 2)
         return t; // linear passthrough
 
@@ -112,4 +110,52 @@ float TerrainNoise::ApplyCurve(float t) const
     }
 
     return curve.back().Out; // past the end
+}
+
+const BiomeConfig *TerrainNoise::SelectBiome(float x, float z) const
+{
+    auto climate = SampleClimate(x, z);
+    const BiomeConfig *bestMatch = nullptr;
+    float bestFitness = -1.0f; // Higher is better
+
+    const auto &registry = EngineContext::GetBiomeRegistry();
+
+    for (const std::string &id : EngineContext::GetBiomeRegistry().GetAllSorted())
+    {
+        const BiomeConfig *biome = registry.GetById(id);
+        auto &c = biome->Conditions;
+
+        // check if it's within the required bounds
+        if ((c.Temperature && !c.Temperature->Contains(climate["temperature"])) ||
+            (c.Humidity && !c.Humidity->Contains(climate["humidity"])) ||
+            (c.Continentalness && !c.Continentalness->Contains(climate["continentalness"])))
+        {
+            continue;
+        }
+
+        float currentFitness = 0.0f;
+        if (c.Temperature)
+            currentFitness += (1.0f - (c.Temperature->Max - c.Temperature->Min));
+        if (c.Humidity)
+            currentFitness += (1.0f - (c.Humidity->Max - c.Humidity->Min));
+
+        if (currentFitness > bestFitness)
+        {
+            bestFitness = currentFitness;
+            bestMatch = biome;
+        }
+    }
+
+    return bestMatch ? bestMatch : EngineContext::GetBiomeRegistry().GetById(m_Config.FallbackBiome);
+}
+
+std::unordered_map<std::string, float> TerrainNoise::SampleClimate(float x, float z) const
+{
+    std::unordered_map<std::string, float> values;
+    for (auto &c : m_ClimateSamplers)
+    {
+        float v = c.Noise.GetNoise(x, z); // [-1, 1]
+        values[c.Name] = v * 0.5f + 0.5f; // normalize to [0, 1]
+    }
+    return values;
 }

@@ -17,5 +17,5 @@ public:
     void Generate(const TerrainNoise &noise);
 
 private:
-    uint16_t ResolveBlock(const TerrainConfig &config, int worldY, int surfaceY) const;
+    uint16_t ResolveBlock(int y, int surfaceY, int seaLevel, const BiomeConfig &biome) const;
 };

@@ -17,12 +17,12 @@ struct ChunkBlockData
 
     ChunkBlockData()
     {
-        Indices.resize(PADDED_CHUNK_SIZE * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE);
+        Indices.assign(PADDED_CHUNK_SIZE * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE, 0);
     }
 
     uint32_t GetIndex(int x, int y, int z) const
     {
-        return x + PADDED_CHUNK_SIZE * (z + PADDED_CHUNK_SIZE * y);
+        return x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z);
     }
 
     uint16_t GetId(int x, int y, int z) const

@@ -1,0 +1,57 @@
+{
+    "Id": "forest",
+    "Conditions": {
+        "Temperature": {
+            "Min": 0.4,
+            "Max": 0.6
+        },
+        "Humidity": {
+            "Min": 0.4,
+            "Max": 0.6
+        }
+    },
+    "NoiseLayers": [
+        {
+            "Name": "base",
+            "Weight": 1.0,
+            "NoiseType": "OpenSimplex2",
+            "FractalType": "FBm",
+            "Frequency": 0.015,
+            "Amplitude": 1.0,
+            "Octaves": 3,
+            "Lacunarity": 2.0,
+            "Gain": 0.25,
+            "WeightedStrength": 0.0,
+            "UseDomainWarp": true,
+            "DomainWarpType": "OpenSimplex2",
+            "DomainWarpAmp": 8.0
+        }
+    ],
+    "HeightCurve": [
+        {
+            "In": 0.0,
+            "Out": 0.475
+        },
+        {
+            "In": 0.5,
+            "Out": 0.5
+        },
+        {
+            "In": 1.0,
+            "Out": 0.55
+        }
+    ],
+    "BlockLayers": [
+        {
+            "Block": "stone",
+            "Condition": "BelowSurface",
+            "Priority": 2
+        },
+        {
+            "Block": "dirt",
+            "Condition": "BelowSurface",
+            "MaxDepth": 4,
+            "Priority": 1
+        }
+    ]
+}

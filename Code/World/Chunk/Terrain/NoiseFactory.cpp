@@ -1,5 +1,4 @@
 #include "NoiseFactory.h"
-#include "TerrainNoise.h"
 
 FastNoiseLite NoiseFactory::BuildNoise(const NoiseLayerConfig &layer)
 {

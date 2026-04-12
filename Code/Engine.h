@@ -5,6 +5,7 @@
 #include "Util/Memory.h"
 #include "Window.h"
 #include "World/Block/BlockRegistry.h"
+#include "World/Chunk/Terrain/Biome/BiomeRegistry.h"
 #include "World/World.h"
 
 #include <cassert>
@@ -21,6 +22,8 @@ public:
     Input &GetInput() { return *m_Input; }
 
     BlockRegistry &GetBlockRegistry() { return m_BlockRegistry; }
+    BiomeRegistry &GetBiomeRegistry() { return m_BiomeRegistry; }
+
     World &GetWorld() { return m_World; }
 
 private:
@@ -30,6 +33,8 @@ private:
     Scope<Input> m_Input;
 
     BlockRegistry m_BlockRegistry;
+    BiomeRegistry m_BiomeRegistry;
+
     World m_World;
 };
 
@@ -53,6 +58,8 @@ public:
     static Input &GetInput() { return Get().GetInput(); }
 
     static BlockRegistry &GetBlockRegistry() { return Get().GetBlockRegistry(); }
+    static BiomeRegistry &GetBiomeRegistry() { return Get().GetBiomeRegistry(); }
+
     static World &GetWorld() { return Get().GetWorld(); }
 
     static Engine &Get()

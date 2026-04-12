@@ -1,0 +1,65 @@
+{
+    "Id": "mountains",
+    "Conditions": {
+        "Temperature": {
+            "Min": 0.3,
+            "Max": 0.5
+        },
+        "Humidity": {
+            "Min": 0.4,
+            "Max": 0.7
+        },
+        "Continentalness": {
+            "Min": 0.7
+        }
+    },
+    "NoiseLayers": [
+        {
+            "Name": "base",
+            "Weight": 1.0,
+            "NoiseType": "OpenSimplex2",
+            "FractalType": "FBm",
+            "Frequency": 0.008,
+            "Amplitude": 1.0,
+            "Octaves": 3,
+            "Lacunarity": 2.0,
+            "Gain": 0.5,
+            "WeightedStrength": 0.0,
+            "UseDomainWarp": true,
+            "DomainWarpType": "OpenSimplex2",
+            "DomainWarpAmp": 8.0
+        }
+    ],
+    "HeightCurve": [
+        {
+            "In": 0.0,
+            "Out": 0.0
+        },
+        {
+            "In": 0.8,
+            "Out": 0.8
+        },
+        {
+            "In": 1.0,
+            "Out": 0.8
+        }
+    ],
+    "BlockLayers": [
+        {
+            "Block": "stone",
+            "Condition": "BelowSurface",
+            "Priority": 2
+        },
+        {
+            "Block": "dirt",
+            "Condition": "BelowSurface",
+            "MaxDepth": 4,
+            "Priority": 1
+        },
+        {
+            "Block": "grass_block",
+            "Condition": "AtSurface",
+            "Priority": 3
+        }
+    ]
+}

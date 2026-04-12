@@ -4,80 +4,22 @@
         "Min": 0,
         "Max": 128
     },
-    "NoiseLayers": [
+    "FallbackBiome": "plains",
+    "ClimateMaps": [
         {
-            "Name": "continent",
-            "Weight": 1.0,
-            "NoiseType": "OpenSimplex2",
-            "FractalType": "FBm",
-            "Frequency": 0.003,
-            "Amplitude": 1.0,
-            "Octaves": 4,
-            "Lacunarity": 2.0,
-            "Gain": 0.35,
-            "WeightedStrength": 0.0,
-            "UseDomainWarp": true,
-            "DomainWarpType": "OpenSimplex2",
-            "DomainWarpAmp": 20.0
+            "Name": "temperature",
+            "Frequency": 0.0005,
+            "Octaves": 1
         },
         {
-            "Name": "detail",
-            "Weight": 0.08,
-            "NoiseType": "OpenSimplex2S",
-            "FractalType": "FBm",
-            "Frequency": 0.018,
-            "Amplitude": 1.0,
-            "Octaves": 3,
-            "Lacunarity": 2.0,
-            "Gain": 0.45,
-            "WeightedStrength": 0.0,
-            "UseDomainWarp": false,
-            "DomainWarpType": "OpenSimplex2",
-            "DomainWarpAmp": 10.0
-        }
-    ],
-    "HeightCurve": [
-        {
-            "In": 0,
-            "Out": 0
+            "Name": "humidity",
+            "Frequency": 0.000,
+            "Octaves": 1
         },
         {
-            "In": 0.35,
-            "Out": 0.15
-        },
-        {
-            "In": 0.5,
-            "Out": 0.35
-        },
-        {
-            "In": 0.65,
-            "Out": 0.5
-        },
-        {
-            "In": 0.8,
-            "Out": 0.68
-        },
-        {
-            "In": 1,
-            "Out": 1
-        }
-    ],
-    "BlockLayers": [
-        {
-            "Block": "stone",
-            "Condition": "BelowSurface",
-            "Priority": 3
-        },
-        {
-            "Block": "dirt",
-            "Condition": "BelowSurface",
-            "MaxDepth": 3,
-            "Priority": 2
-        },
-        {
-            "Block": "grass_block",
-            "Condition": "AtSurface",
-            "Priority": 3
+            "Name": "continentalness",
+            "Frequency": 0.005,
+            "Octaves": 1
         }
     ]
 }

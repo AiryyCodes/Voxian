@@ -1,6 +1,6 @@
 #pragma once
 
-#include "World/Chunk/Terrain/TerrainNoise.h"
+#include "World/Chunk/Terrain/NoiseLayerConfig.h"
 
 #include <FastNoiseLite.h>
 
