@@ -5,7 +5,6 @@
 #include <string>
 #include <glaze/glaze.hpp>
 #include <FastNoiseLite.h>
-#include <unordered_map>
 #include <vector>
 
 struct HeightRange
@@ -45,8 +44,15 @@ struct ClimateNoise
 
 struct BiomeWeight
 {
-    const BiomeConfig *biome = nullptr;
-    float weight = 0.0f;
+    const BiomeConfig *Biome = nullptr;
+    float Weight = 0.0f;
+};
+
+struct ClimateValues
+{
+    float Temperature;
+    float Humidity;
+    float Continentalness;
 };
 
 class TerrainNoise
@@ -56,16 +62,17 @@ public:
 
     TerrainConfig Load(const std::string &path);
 
+    float GetDensity(float x, float y, float z) const;
     float GetNoise(float worldX, float worldZ, const BiomeConfig *biome) const;
-    float GetNoiseCurved(float worldX, float worldZ) const;
 
-    float GetBlendedHeight(float x, float z) const;
-
-    float ApplyCurve(float t, const BiomeConfig *biome) const;
+    float ApplyOffset(float noise, const BiomeConfig *biome) const;
+    float ApplyScale(float noise, const BiomeConfig *biome) const;
+    float InterpolateCurve(const std::vector<CurvePoint> &curve, float t) const;
 
     const BiomeConfig *SelectBiome(float x, float z) const;
-    std::vector<BiomeWeight> SelectBiomes(float x, float z) const;
-    std::unordered_map<std::string, float> SampleClimate(float x, float z) const;
+    std::vector<BiomeWeight> SampleBiomeWeights(float x, float z, int topN = 3) const;
+
+    ClimateValues SampleClimate(float x, float z) const;
 
     const TerrainConfig &GetConfig() const { return m_Config; }
 

@@ -1,17 +1,9 @@
 {
     "Id": "mountains",
-    "Conditions": {
-        "Temperature": {
-            "Min": 0.3,
-            "Max": 0.5
-        },
-        "Humidity": {
-            "Min": 0.4,
-            "Max": 0.7
-        },
-        "Continentalness": {
-            "Min": 0.7
-        }
+    "ClimatePoint": {
+        "Temperature": 0.4,
+        "Humidity": 0.4,
+        "Continentalness": 0.9
     },
     "NoiseLayers": [
         {
@@ -19,47 +11,77 @@
             "Weight": 1.0,
             "NoiseType": "OpenSimplex2",
             "FractalType": "FBm",
-            "Frequency": 0.008,
-            "Amplitude": 1.0,
-            "Octaves": 3,
+            "Frequency": 0.0015,
+            "Octaves": 4,
             "Lacunarity": 2.0,
-            "Gain": 0.5,
+            "Gain": 0.45,
             "WeightedStrength": 0.0,
             "UseDomainWarp": true,
             "DomainWarpType": "OpenSimplex2",
-            "DomainWarpAmp": 8.0
+            "DomainWarpAmp": 25.0
         }
     ],
-    "HeightCurve": [
+    "OffsetCurve": [
         {
             "In": 0.0,
-            "Out": 0.0
+            "Out": 0.52
         },
         {
-            "In": 0.8,
-            "Out": 0.8
+            "In": 0.3,
+            "Out": 0.55
+        },
+        {
+            "In": 0.6,
+            "Out": 0.65
         },
         {
             "In": 1.0,
-            "Out": 0.8
+            "Out": 0.80
+        }
+    ],
+    "ScaleCurve": [
+        {
+            "In": 0.0,
+            "Out": 0.12
+        },
+        {
+            "In": 0.5,
+            "Out": 0.25
+        },
+        {
+            "In": 1.0,
+            "Out": 0.35
         }
     ],
     "BlockLayers": [
         {
             "Block": "stone",
             "Condition": "BelowSurface",
-            "Priority": 2
+            "Priority": 3
         },
         {
             "Block": "dirt",
             "Condition": "BelowSurface",
             "MaxDepth": 4,
-            "Priority": 1
+            "MaxHeight": 160,
+            "Priority": 2
         },
         {
             "Block": "grass_block",
             "Condition": "AtSurface",
+            "MaxHeight": 160,
+            "Priority": 1
+        },
+        {
+            "Block": "stone",
+            "Condition": "AtSurface",
             "Priority": 3
+        },
+        {
+            "Block": "snow_block",
+            "Condition": "AtSurface",
+            "MinHeight": 200,
+            "Priority": 5
         }
     ]
 }

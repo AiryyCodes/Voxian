@@ -1,25 +1,25 @@
 {
     "SeaLevel": 64,
     "HeightRange": {
-        "Min": 0,
-        "Max": 128
+        "Min": -64,
+        "Max": 320
     },
     "FallbackBiome": "plains",
     "ClimateMaps": [
         {
             "Name": "temperature",
-            "Frequency": 0.0005,
-            "Octaves": 1
+            "Frequency": 0.004,
+            "Octaves": 2
         },
         {
             "Name": "humidity",
-            "Frequency": 0.000,
-            "Octaves": 1
+            "Frequency": 0.004,
+            "Octaves": 2
         },
         {
             "Name": "continentalness",
-            "Frequency": 0.005,
-            "Octaves": 1
+            "Frequency": 0.0003,
+            "Octaves": 2
         }
     ]
 }

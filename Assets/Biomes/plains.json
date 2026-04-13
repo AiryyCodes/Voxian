@@ -1,14 +1,9 @@
 {
     "Id": "plains",
-    "Conditions": {
-        "Temperature": {
-            "Min": 0.4,
-            "Max": 0.6
-        },
-        "Humidity": {
-            "Min": 0.4,
-            "Max": 0.6
-        }
+    "ClimatePoint": {
+        "Temperature": 0.6,
+        "Humidity": 0.3,
+        "Continentalness": 0.5
     },
     "NoiseLayers": [
         {
@@ -16,29 +11,42 @@
             "Weight": 1.0,
             "NoiseType": "OpenSimplex2",
             "FractalType": "FBm",
-            "Frequency": 0.02,
-            "Amplitude": 1.0,
-            "Octaves": 3,
+            "Frequency": 0.004,
+            "Octaves": 2,
             "Lacunarity": 2.0,
-            "Gain": 0.25,
+            "Gain": 0.08,
             "WeightedStrength": 0.0,
             "UseDomainWarp": true,
             "DomainWarpType": "OpenSimplex2",
-            "DomainWarpAmp": 8.0
+            "DomainWarpAmp": 2.0
         }
     ],
-    "HeightCurve": [
+    "OffsetCurve": [
         {
             "In": 0.0,
-            "Out": 0.475
+            "Out": 0.48
         },
         {
             "In": 0.5,
-            "Out": 0.5
+            "Out": 0.50
         },
         {
             "In": 1.0,
-            "Out": 0.525
+            "Out": 0.52
+        }
+    ],
+    "ScaleCurve": [
+        {
+            "In": 0.0,
+            "Out": 0.02
+        },
+        {
+            "In": 0.5,
+            "Out": 0.03
+        },
+        {
+            "In": 1.0,
+            "Out": 0.02
         }
     ],
     "BlockLayers": [

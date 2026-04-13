@@ -73,22 +73,35 @@ struct NoisePair
     float weight = 1.0f;
 };
 
+struct BiomeClimatePoint
+{
+    float Temperature = 0.5f;
+    float Humidity = 0.5f;
+    float Continentalness = 0.5f;
+
+    struct glaze
+    {
+        using T = BiomeClimatePoint;
+        static constexpr auto value = glz::object(
+            &T::Temperature, &T::Humidity, &T::Continentalness);
+    };
+};
+
 struct BiomeConfig
 {
     std::string Id = "";
-    BiomeConditions Conditions;
+    BiomeClimatePoint ClimatePoint;
     std::vector<NoiseLayerConfig> NoiseLayers;
-    std::vector<CurvePoint> HeightCurve;
+    std::vector<CurvePoint> OffsetCurve;
+    std::vector<CurvePoint> ScaleCurve;
     std::vector<BlockLayerConfig> BlockLayers;
-
-    // Built at load time, not serialized
     std::vector<NoisePair> NoisePairs;
 
     struct glaze
     {
         using T = BiomeConfig;
         static constexpr auto value = glz::object(
-            &T::Id, &T::Conditions, &T::NoiseLayers,
-            &T::HeightCurve, &T::BlockLayers);
+            &T::Id, &T::ClimatePoint, &T::NoiseLayers,
+            &T::OffsetCurve, &T::ScaleCurve, &T::BlockLayers);
     };
 };

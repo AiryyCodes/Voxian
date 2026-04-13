@@ -6,6 +6,13 @@
 
 void BiomeRegistry::LoadAll(const std::string &directory)
 {
+    size_t count = 0;
+    for (auto &entry : std::filesystem::directory_iterator(directory))
+        if (entry.path().extension() == ".json")
+            count++;
+
+    m_Biomes.reserve(count);
+
     for (auto &entry : std::filesystem::directory_iterator(directory))
     {
         if (entry.path().extension() != ".json")
@@ -59,6 +66,13 @@ void BiomeRegistry::LoadAll(const std::string &directory)
     }
 
     std::sort(m_SortedIds.begin(), m_SortedIds.end());
+
+    int maxLayerDepth = 0;
+    for (auto &[id, biome] : EngineContext::GetBiomeRegistry().GetAll())
+        for (auto &layer : biome.BlockLayers)
+            maxLayerDepth = std::max(maxLayerDepth, layer.MaxDepth);
+
+    m_MaxScanDepth = maxLayerDepth + 1; // +1 as a small safety margin
 }
 
 const BiomeConfig *BiomeRegistry::GetById(const std::string &id) const

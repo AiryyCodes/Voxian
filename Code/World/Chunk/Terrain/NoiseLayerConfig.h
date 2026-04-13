@@ -44,7 +44,6 @@ struct NoiseLayerConfig
     FastNoiseLite::NoiseType NoiseType = FastNoiseLite::NoiseType_OpenSimplex2;
     FastNoiseLite::FractalType FractalType = FastNoiseLite::FractalType_FBm;
     float Frequency = 0.004f;
-    float Amplitude = 1.0f;
     int Octaves = 5;
     float Lacunarity = 2.0f;
     float Gain = 0.5f;
@@ -58,7 +57,7 @@ struct NoiseLayerConfig
         using T = NoiseLayerConfig;
         static constexpr auto value = glz::object(
             &T::Name, &T::Weight, &T::NoiseType, &T::FractalType,
-            &T::Frequency, &T::Amplitude, &T::Octaves, &T::Lacunarity,
+            &T::Frequency, &T::Octaves, &T::Lacunarity,
             &T::Gain, &T::WeightedStrength, &T::UseDomainWarp,
             &T::DomainWarpType, &T::DomainWarpAmp);
     };
