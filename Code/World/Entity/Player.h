@@ -13,12 +13,12 @@ private:
     float m_SprintSpeed = 5.6f;
     float m_FlightSpeed = 20.0f;
 
+    float m_JumpForce = 8.5f;
+
     float m_GroundAccel = 25.0f;
     float m_GroundDecel = 25.0f;
     float m_AirAccel = 6.0f;
     float m_AirDecel = 2.0f;
-
-    float m_JumpForce = 9.0f;
 };
 
 class SpawnController : public Component
