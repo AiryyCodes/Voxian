@@ -70,21 +70,20 @@ TerrainConfig TerrainNoise::Load(const std::string &path)
 
 float TerrainNoise::GetDensity(float x, float y, float z) const
 {
-    auto weights = SampleBiomeWeights(x, z, 3);
+    BiomeWeight weights[3];
+    int count = SampleBiomeWeights(x, z, weights, 3);
 
     float blendedOffset = 0.0f;
     float blendedScale = 0.0f;
-
-    for (auto &bw : weights)
+    for (int i = 0; i < count; i++)
     {
-        float n = GetNoise(x, z, bw.Biome);
-        blendedOffset += ApplyOffset(n, bw.Biome) * bw.Weight;
-        blendedScale += ApplyScale(n, bw.Biome) * bw.Weight;
+        float n = GetNoise(x, z, weights[i].Biome);
+        blendedOffset += ApplyOffset(n, weights[i].Biome) * weights[i].Weight;
+        blendedScale += ApplyScale(n, weights[i].Biome) * weights[i].Weight;
     }
 
     float yFrac = (y - m_Config.HeightRange.Min) /
                   (float)(m_Config.HeightRange.Max - m_Config.HeightRange.Min);
-
     return (blendedOffset - yFrac) / std::max(blendedScale, 0.001f);
 }
 
@@ -144,79 +143,70 @@ float TerrainNoise::InterpolateCurve(const std::vector<CurvePoint> &curve, float
 
 const BiomeConfig *TerrainNoise::SelectBiome(float x, float z) const
 {
-    auto weights = SampleBiomeWeights(x, z, 3);
-    if (weights.empty())
+    BiomeWeight weights[3];
+    int count = SampleBiomeWeights(x, z, weights, 3);
+    if (count == 0)
         return EngineContext::GetBiomeRegistry().GetById(m_Config.FallbackBiome);
-    // weights[0] is always the nearest after partial_sort
     return weights[0].Biome;
 }
 
-std::vector<BiomeWeight> TerrainNoise::SampleBiomeWeights(float x, float z, int topN) const
+int TerrainNoise::SampleBiomeWeights(float x, float z, BiomeWeight *outWeights, int maxN) const
 {
     auto climate = SampleClimate(x, z);
     float t = climate.Temperature;
     float h = climate.Humidity;
     float c = climate.Continentalness;
 
-    // Collect all biomes with their squared climate-space distances
+    // Stack allocated — no heap
+    constexpr int MAX_CANDIDATES = 16;
     struct Candidate
     {
         const BiomeConfig *Biome;
         float DistSq;
     };
-    std::vector<Candidate> candidates;
-    candidates.reserve(16);
+    Candidate candidates[MAX_CANDIDATES];
+    int candidateCount = 0;
 
     for (auto &[id, biome] : EngineContext::GetBiomeRegistry().GetAll())
     {
-        auto &p = biome.ClimatePoint;
-        float dt = t - p.Temperature;
-        float dh = h - p.Humidity;
-        float dc = c - p.Continentalness;
-        // Continentalness weighted less so it drives macro shape, not borders
+        float dt = t - biome.ClimatePoint.Temperature;
+        float dh = h - biome.ClimatePoint.Humidity;
+        float dc = c - biome.ClimatePoint.Continentalness;
         float distSq = dt * dt + dh * dh + 0.4f * dc * dc;
-        candidates.push_back({&biome, distSq});
+        if (candidateCount < MAX_CANDIDATES)
+            candidates[candidateCount++] = {&biome, distSq};
     }
 
-    // Partial sort: cheapest way to get the topN closest
-    int clampedN = std::min(topN, (int)candidates.size());
-    std::partial_sort(candidates.begin(), candidates.begin() + clampedN, candidates.end(),
+    int clampedN = std::min(maxN, candidateCount);
+    std::partial_sort(candidates, candidates + clampedN, candidates + candidateCount,
                       [](const Candidate &a, const Candidate &b)
                       { return a.DistSq < b.DistSq; });
-    candidates.resize(clampedN);
 
-    // The blend radius is set to 2× the nearest biome's distance so the
-    // winner always dominates the center but neighbors bleed in at borders.
-    float blendRadius = candidates[0].DistSq * 4.0f + 0.0001f; // in distSq space
+    float blendRadius = candidates[0].DistSq * 4.0f + 0.0001f;
 
-    std::vector<BiomeWeight> result;
-    result.reserve(clampedN);
     float totalW = 0.0f;
-
-    for (auto &cand : candidates)
+    int outCount = 0;
+    for (int i = 0; i < clampedN; i++)
     {
-        float w = BiomeWeight_Kernel(cand.DistSq, blendRadius);
+        float w = BiomeWeight_Kernel(candidates[i].DistSq, blendRadius);
         if (w > 1e-5f)
         {
-            result.push_back({cand.Biome, w});
+            outWeights[outCount++] = {candidates[i].Biome, w};
             totalW += w;
         }
     }
 
-    // Always guarantee at least the nearest biome
-    if (result.empty())
+    if (outCount == 0)
     {
-        result.push_back({candidates[0].Biome, 1.0f});
-        return result;
+        outWeights[0] = {candidates[0].Biome, 1.0f};
+        return 1;
     }
 
-    // Normalize
-    for (auto &bw : result)
-        bw.Weight /= totalW;
+    for (int i = 0; i < outCount; i++)
+        outWeights[i].Weight /= totalW;
 
-    return result;
+    return outCount;
 }
-
 ClimateValues TerrainNoise::SampleClimate(float x, float z) const
 {
     ClimateValues v{};

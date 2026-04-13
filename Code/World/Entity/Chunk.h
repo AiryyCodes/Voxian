@@ -22,7 +22,7 @@ struct ChunkBlockData
 
     uint32_t GetIndex(int x, int y, int z) const
     {
-        return x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z);
+        return x * PADDED_CHUNK_HEIGHT * PADDED_CHUNK_SIZE + y * PADDED_CHUNK_SIZE + z;
     }
 
     uint16_t GetId(int x, int y, int z) const
@@ -36,9 +36,13 @@ struct ChunkBlockData
 
     void SetId(int x, int y, int z, uint16_t id)
     {
+        if (x < 0 || x >= PADDED_CHUNK_SIZE ||
+            y < 0 || y >= PADDED_CHUNK_HEIGHT ||
+            z < 0 || z >= PADDED_CHUNK_SIZE)
+            return;
+
         uint32_t index = GetIndex(x, y, z);
-        if (index < Indices.size())
-            Indices[index] = id;
+        Indices[index] = id;
     }
 };
 

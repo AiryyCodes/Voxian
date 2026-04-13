@@ -12,9 +12,9 @@
 #define PADDED_CHUNK_HEIGHT (CHUNK_HEIGHT + 2)
 
 #define CELL 2
-#define CX ((PADDED_CHUNK_SIZE / CELL) + 1)
-#define CY ((PADDED_CHUNK_HEIGHT / CELL) + 1)
-#define CZ ((PADDED_CHUNK_SIZE / CELL) + 1)
+#define CX ((PADDED_CHUNK_SIZE / CELL) + 2)
+#define CY ((PADDED_CHUNK_HEIGHT / CELL) + 2)
+#define CZ ((PADDED_CHUNK_SIZE / CELL) + 2)
 
 class ChunkGenerator : public Component
 {

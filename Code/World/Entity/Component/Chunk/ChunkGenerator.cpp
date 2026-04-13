@@ -16,38 +16,80 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
     const TerrainConfig &config = noise.GetConfig();
     BiomeRegistry &biomeRegistry = EngineContext::GetBiomeRegistry();
 
-    std::vector<float> densityFlat(CX * CY * CZ);
-    auto density = [&](int x, int y, int z) -> float &
+    constexpr int MAX_BIOME_WEIGHTS = 3;
+    struct WeightEntry
     {
-        return densityFlat[x * CY * CZ + y * CZ + z];
+        const BiomeConfig *Biome;
+        float Weight;
+    };
+    struct ColumnWeights
+    {
+        WeightEntry Entries[MAX_BIOME_WEIGHTS];
+        int Count = 0;
     };
 
-    // Fill density grid
-    for (int cx = 0; cx < CX; cx++)
+    std::vector<ColumnWeights> biomeGrid((CX * CELL + 1) * (CZ * CELL + 1));
+    auto biomeAt = [&](int x, int z) -> ColumnWeights &
     {
-        for (int cy = 0; cy < CY; cy++)
+        return biomeGrid[x * (CZ * CELL + 1) + z];
+    };
+
+    // Stack buffer — no heap allocation per column
+    BiomeWeight weightsBuf[MAX_BIOME_WEIGHTS];
+
+    for (int x = 0; x <= CX * CELL; x++)
+    {
+        for (int z = 0; z <= CZ * CELL; z++)
         {
-            for (int cz = 0; cz < CZ; cz++)
+            float wx = origin.x + x;
+            float wz = origin.z + z;
+            int count = noise.SampleBiomeWeights(wx, wz, weightsBuf, MAX_BIOME_WEIGHTS);
+            auto &col = biomeAt(x, z);
+            col.Count = count;
+            for (int i = 0; i < count; i++)
+                col.Entries[i] = {weightsBuf[i].Biome, weightsBuf[i].Weight};
+        }
+    }
+
+    std::vector<float> densityFlat((CX + 1) * (CY + 1) * (CZ + 1));
+    auto density = [&](int x, int y, int z) -> float &
+    {
+        return densityFlat[x * (CY + 1) * (CZ + 1) + y * (CZ + 1) + z];
+    };
+
+    for (int cx = 0; cx <= CX; cx++)
+    {
+        for (int cy = 0; cy <= CY; cy++)
+        {
+            for (int cz = 0; cz <= CZ; cz++)
             {
                 float wx = origin.x + cx * CELL;
                 float wy = origin.y + cy * CELL;
                 float wz = origin.z + cz * CELL;
-                density(cx, cy, cz) = noise.GetDensity(wx, wy, wz);
+
+                auto &col = biomeAt(cx * CELL, cz * CELL);
+
+                float blendedOffset = 0.0f, blendedScale = 0.0f;
+                for (int i = 0; i < col.Count; i++)
+                {
+                    float n = noise.GetNoise(wx, wz, col.Entries[i].Biome);
+                    blendedOffset += noise.ApplyOffset(n, col.Entries[i].Biome) * col.Entries[i].Weight;
+                    blendedScale += noise.ApplyScale(n, col.Entries[i].Biome) * col.Entries[i].Weight;
+                }
+
+                float yFrac = (wy - config.HeightRange.Min) /
+                              (float)(config.HeightRange.Max - config.HeightRange.Min);
+                density(cx, cy, cz) = (blendedOffset - yFrac) / std::max(blendedScale, 0.001f);
             }
         }
     }
 
-    // Fill blocks
     for (int x = 0; x < PADDED_CHUNK_SIZE; x++)
     {
         for (int y = 0; y < PADDED_CHUNK_HEIGHT; y++)
         {
             for (int z = 0; z < PADDED_CHUNK_SIZE; z++)
             {
-                float wx = origin.x + x;
-                float wy = origin.y + y;
-                float wz = origin.z + z;
-
                 int cx = x / CELL, cy = y / CELL, cz = z / CELL;
                 float tx = (x % CELL) / (float)CELL;
                 float ty = (y % CELL) / (float)CELL;
@@ -64,23 +106,31 @@ void ChunkGenerator::Generate(const TerrainNoise &noise)
 
                 bool isAtSurface = dAbove <= 0.0f;
                 int depthFromSurface = 0;
+
                 if (!isAtSurface)
                 {
-                    for (int scanY = y + 1; scanY < PADDED_CHUNK_HEIGHT && depthFromSurface <= biomeRegistry.GetMaxScanDepth(); scanY++)
+                    bool foundAir = false;
+                    for (int scanY = y + 1;
+                         scanY < PADDED_CHUNK_HEIGHT && depthFromSurface <= biomeRegistry.GetMaxScanDepth();
+                         scanY++)
                     {
-                        int scx = x / CELL, scz = z / CELL;
                         int scy = scanY / CELL;
-                        float stx = (x % CELL) / (float)CELL;
                         float sty = (scanY % CELL) / (float)CELL;
-                        float stz = (z % CELL) / (float)CELL;
-                        float sd = Trilinear(densityFlat, scx, scy, scz, stx, sty, stz);
+                        float sd = Trilinear(densityFlat, cx, scy, cz, tx, sty, tz);
                         if (sd <= 0.0f)
-                            break; // found air — depthFromSurface is the gap so far
+                        {
+                            foundAir = true;
+                            break;
+                        }
                         depthFromSurface++;
                     }
+                    // Deep underground — exceeds all MaxDepth layers, stone will match
+                    if (!foundAir)
+                        depthFromSurface = biomeRegistry.GetMaxScanDepth() + 1;
                 }
 
-                const BiomeConfig *biome = noise.SelectBiome(wx, wz);
+                const BiomeConfig *biome = biomeAt(x, z).Entries[0].Biome;
+                float wy = origin.y + y;
                 chunk.m_Blocks.SetId(x, y, z,
                                      ResolveBlock((int)wy, isAtSurface, depthFromSurface, config.SeaLevel, *biome));
             }
@@ -123,18 +173,18 @@ uint16_t ChunkGenerator::ResolveBlock(int worldY, bool isAtSurface, int depthFro
             break;
         }
     }
+
     return Blocks::AIR;
 }
 
 float ChunkGenerator::Trilinear(const std::vector<float> &d,
                                 int cx, int cy, int cz, float tx, float ty, float tz)
 {
+    int strideY = CY + 1;
+    int strideZ = CZ + 1;
     auto s = [&](int x, int y, int z) -> float
     {
-        x = std::min(x, CX - 1);
-        y = std::min(y, CY - 1);
-        z = std::min(z, CZ - 1);
-        return d[x * CY * CZ + y * CZ + z];
+        return d[x * strideY * strideZ + y * strideZ + z];
     };
     float d00 = s(cx, cy, cz) * (1 - tx) + s(cx + 1, cy, cz) * tx;
     float d01 = s(cx, cy, cz + 1) * (1 - tx) + s(cx + 1, cy, cz + 1) * tx;

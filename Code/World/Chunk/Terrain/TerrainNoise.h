@@ -70,7 +70,7 @@ public:
     float InterpolateCurve(const std::vector<CurvePoint> &curve, float t) const;
 
     const BiomeConfig *SelectBiome(float x, float z) const;
-    std::vector<BiomeWeight> SampleBiomeWeights(float x, float z, int topN = 3) const;
+    int SampleBiomeWeights(float x, float z, BiomeWeight *outWeights, int maxN = 3) const;
 
     ClimateValues SampleClimate(float x, float z) const;
 
