@@ -12,46 +12,76 @@
 void EntityPhysics::OnUpdate(float delta)
 {
     m_IsOnGround = false;
-
     if (!m_IsFlying)
         m_Velocity.y -= m_Gravity * delta;
 
-    MoveAndCollide(Vector3f(m_Velocity.x * delta, 0, 0));
-    MoveAndCollide(Vector3f(0, m_Velocity.y * delta, 0));
-    MoveAndCollide(Vector3f(0, 0, m_Velocity.z * delta));
+    Vector3f motion(m_Velocity.x * delta, m_Velocity.y * delta, m_Velocity.z * delta);
+
+    // Resolve in passes until clean or max iterations reached
+    constexpr int MAX_ITERATIONS = 3;
+    for (int i = 0; i < MAX_ITERATIONS; i++)
+    {
+        bool anyCollision = false;
+        anyCollision |= MoveAndCollide(Vector3f(motion.x, 0, 0));
+        anyCollision |= MoveAndCollide(Vector3f(0, motion.y, 0));
+        anyCollision |= MoveAndCollide(Vector3f(0, 0, motion.z));
+
+        // Zero out resolved axes for subsequent iterations
+        if (m_Velocity.x == 0)
+            motion.x = 0;
+        if (m_Velocity.y == 0)
+            motion.y = 0;
+        if (m_Velocity.z == 0)
+            motion.z = 0;
+
+        if (!anyCollision)
+            break;
+    }
 }
 
-void EntityPhysics::MoveAndCollide(Vector3f delta)
+bool EntityPhysics::MoveAndCollide(Vector3f delta)
 {
-    Transform &transform = GetOwner().GetComponent<Transform>();
+    if (delta.x == 0 && delta.y == 0 && delta.z == 0)
+        return false;
 
+    Transform &transform = GetOwner().GetComponent<Transform>();
     transform.Position += delta;
     AABB box = GetOwner().GetAABB();
-
     auto blocks = GetBlocksInAABB(box, delta);
 
+    std::sort(blocks.begin(), blocks.end(), [&](const Vector3i &a, const Vector3i &b)
+              {
+        float pa = std::abs(GetPenetration(box, GetBlockAABB(a), delta));
+        float pb = std::abs(GetPenetration(box, GetBlockAABB(b), delta));
+        return pa < pb; });
+
+    bool resolved = false;
     for (const auto &block : blocks)
     {
+        box = GetOwner().GetAABB();
         AABB blockBox = GetBlockAABB(block);
         if (!AABB::Intersects(box, blockBox))
             continue;
 
-        float penetration = GetPenetration(box, blockBox, delta);
+        float correction = GetPenetration(box, blockBox, delta);
 
         if (delta.x != 0)
         {
-            transform.Position.x -= penetration;
+            transform.Position.x -= correction;
             m_Velocity.x = 0;
+            resolved = true;
         }
         else if (delta.y != 0)
         {
-            transform.Position.y -= penetration;
+            transform.Position.y -= correction;
             m_Velocity.y = 0;
+            resolved = true;
         }
         else if (delta.z != 0)
         {
-            transform.Position.z -= penetration;
+            transform.Position.z -= correction;
             m_Velocity.z = 0;
+            resolved = true;
         }
 
         box = GetOwner().GetAABB();
@@ -59,6 +89,8 @@ void EntityPhysics::MoveAndCollide(Vector3f delta)
 
     if (!m_IsFlying && delta.y < 0 && m_Velocity.y == 0)
         m_IsOnGround = true;
+
+    return resolved;
 }
 
 std::vector<Vector3i> EntityPhysics::GetBlocksInAABB(const AABB &box, Vector3f delta)
@@ -73,9 +105,6 @@ std::vector<Vector3i> EntityPhysics::GetBlocksInAABB(const AABB &box, Vector3f d
         {
             for (int z = floor(box.Min.z); z <= floor(box.Max.z); z++)
             {
-                if (delta.y == 0 && y >= (int)floor(box.Max.y))
-                    continue;
-
                 const Block *block = world.GetBlock(x, y, z);
                 if (!block || block->GetProperties().IsAir)
                     continue;

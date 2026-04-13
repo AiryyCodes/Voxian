@@ -9,6 +9,8 @@
 #include "World/Entity/Component/Camera.h"
 #include "World/Entity/Entity.h"
 #include "World/World.h"
+#include "Util/Raycast.h"
+
 #include <GLFW/glfw3.h>
 #include <cmath>
 
@@ -51,8 +53,18 @@ void SpawnController::OnUpdate(float delta)
         auto chunk = chunkManager.GetChunk(chunkX, chunkZ);
 
         // Find the ground and place the player
-        int groundY = chunk->GetTopBlockY(8, 8);
+        int localX = static_cast<int>(transform.Position.x) % CHUNK_SIZE;
+        int localZ = static_cast<int>(transform.Position.z) % CHUNK_SIZE;
+        localX = (localX + CHUNK_SIZE) % CHUNK_SIZE;
+        localZ = (localZ + CHUNK_SIZE) % CHUNK_SIZE;
+
+        int groundY = chunk->GetTopBlockY(localX, localZ);
+
+        // Place player cleanly on top of the surface block
         transform.Position.y = static_cast<float>(groundY);
+
+        // Reset velocity so physics starts clean
+        GetOwner().GetComponent<EntityPhysics>().SetVelocity(Vector3f(0.0f));
 
         // Enable physics on the player
         GetOwner().GetComponent<EntityPhysics>().SetEnabled(true);
@@ -194,6 +206,21 @@ void PlayerInput::OnUpdate(float delta)
 
     float pitch = glm::clamp(camera.GetPitch() + yOffset, -89.f, 89.f);
     camera.SetPitch(pitch);
+
+    // Block placement and destruction
+    if (input.IsMouseButtonJustPressed(GLFW_MOUSE_BUTTON_LEFT))
+    {
+        Vector3f origin = transform.Position + Vector3f(0.0f, 1.62f, 0.0f);
+        Vector3f dir = camera.GetForward();
+
+        RaycastResult result = Raycast(origin, -dir, 6.0f);
+
+        if (result.Hit)
+        {
+            auto &chunkManager = EngineContext::GetWorld().GetChunkManager();
+            chunkManager.SetBlock(result.BlockPos.x, result.BlockPos.y, result.BlockPos.z, 0);
+        }
+    }
 }
 
 AABB Player::GetAABB() const

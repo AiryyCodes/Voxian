@@ -171,11 +171,7 @@ std::array<float, 4> ChunkMeshGenerator::GetVertexAOs(const ChunkSnapshot &snaps
         ao[i] = GetOcclusion(side1, side2, corner);
     }
 
-    if (normal == Vector3i(0, -1, 0))
-    {
-        std::swap(ao[0], ao[2]);
-    }
-    else if (normal == Vector3i(0, 0, -1)) // Forward
+    if (normal == Vector3i(0, 0, -1)) // Forward
     {
         std::reverse(ao.begin(), ao.end());
     }

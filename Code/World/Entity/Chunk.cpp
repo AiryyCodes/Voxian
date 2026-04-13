@@ -61,7 +61,9 @@ ChunkSnapshot Chunk::CreateSnapshot() const
 
 void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
 {
-    MeshRenderer &meshRenderer = AddComponent<MeshRenderer>(Shaders::Chunk);
+    MeshRenderer &meshRenderer = HasComponent<MeshRenderer>()
+                                     ? GetComponent<MeshRenderer>()
+                                     : AddComponent<MeshRenderer>(Shaders::Chunk);
     meshRenderer.GetMesh().Init(
         meshData.Vertices.data(),
         meshData.Vertices.size() * sizeof(ChunkVertex),

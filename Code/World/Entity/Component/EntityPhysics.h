@@ -24,7 +24,7 @@ public:
     void SetFlying(bool flying) { m_IsFlying = flying; }
 
 private:
-    void MoveAndCollide(Vector3f delta);
+    bool MoveAndCollide(Vector3f delta);
     std::vector<Vector3i> GetBlocksInAABB(const AABB &box, Vector3f delta);
     AABB GetBlockAABB(Vector3i blockPos);
     float GetPenetration(const AABB &entity, const AABB &block, const Vector3f &delta);

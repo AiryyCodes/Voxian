@@ -96,6 +96,8 @@ void ChunkManager::Update(float delta)
         chunksQueued++;
     }
 
+    RebuildDirtyChunks();
+
     PollPendingChunks();
 
     if (!m_IsSpawnAreaReady)
@@ -242,4 +244,101 @@ const Block *ChunkManager::GetBlock(int x, int y, int z) const
 
     uint16_t blockId = chunk->GetBlock(localX, y, localZ);
     return EngineContext::GetBlockRegistry().GetBlockByIndex(blockId);
+}
+
+void ChunkManager::SetBlock(int x, int y, int z, uint16_t id)
+{
+    int chunkX = (x >= 0) ? (x / CHUNK_SIZE) : ((x - CHUNK_SIZE + 1) / CHUNK_SIZE);
+    int chunkZ = (z >= 0) ? (z / CHUNK_SIZE) : ((z - CHUNK_SIZE + 1) / CHUNK_SIZE);
+
+    auto it = m_Chunks.find(Vector2i(chunkX, chunkZ));
+    if (it == m_Chunks.end())
+        return;
+
+    int localX = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    int localZ = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+
+    it->second->SetBlock(localX, y, localZ, id);
+    MarkChunkDirty(Vector2i(chunkX, chunkZ));
+
+    // If block is on a chunk border, dirty the neighbor too
+    if (localX == 0)
+        MarkChunkDirty(Vector2i(chunkX - 1, chunkZ));
+    if (localX == CHUNK_SIZE - 1)
+        MarkChunkDirty(Vector2i(chunkX + 1, chunkZ));
+    if (localZ == 0)
+        MarkChunkDirty(Vector2i(chunkX, chunkZ - 1));
+    if (localZ == CHUNK_SIZE - 1)
+        MarkChunkDirty(Vector2i(chunkX, chunkZ + 1));
+}
+
+void ChunkManager::MarkChunkDirty(Vector2i chunkPos)
+{
+    if (m_Chunks.contains(chunkPos) && !m_PendingChunks.contains(chunkPos))
+        m_DirtyChunks.insert(chunkPos);
+}
+
+void ChunkManager::RebuildDirtyChunks()
+{
+    for (const Vector2i &pos : m_DirtyChunks)
+    {
+        auto it = m_Chunks.find(pos);
+        if (it == m_Chunks.end())
+            continue;
+
+        Ref<Chunk> chunk = it->second;
+        ChunkSnapshot snapshot = CreateSnapshotWithNeighbors(chunk); // <-- here
+
+        auto future = m_ThreadPool.submit_task([chunk, snapshot = std::move(snapshot)]() mutable
+                                               { return chunk->GetComponent<ChunkMeshGenerator>().GenerateMesh(snapshot); });
+
+        m_PendingChunks[pos] = {std::move(future), chunk};
+    }
+    m_DirtyChunks.clear();
+}
+
+ChunkSnapshot ChunkManager::CreateSnapshotWithNeighbors(Ref<Chunk> chunk)
+{
+    ChunkSnapshot snapshot = chunk->CreateSnapshot();
+
+    Vector2i pos = chunk->GetPosition();
+
+    // Helper to get a block id from a neighbor, or 0 if not loaded
+    auto getNeighborBlock = [&](int nx, int ny, int nz, Vector2i neighborChunkPos) -> uint16_t
+    {
+        auto it = m_Chunks.find(neighborChunkPos);
+        if (it == m_Chunks.end())
+            return 0;
+        return it->second->GetBlock(nx, ny, nz);
+    };
+
+    // Fill -X border (localX = 0 in padding)
+    auto leftChunk = m_Chunks.find(Vector2i(pos.x - 1, pos.y));
+    if (leftChunk != m_Chunks.end())
+        for (int z = 0; z < CHUNK_SIZE; z++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                snapshot.SetBlock(0, y + 1, z + 1, leftChunk->second->GetBlock(CHUNK_SIZE - 1, y, z));
+
+    // Fill +X border
+    auto rightChunk = m_Chunks.find(Vector2i(pos.x + 1, pos.y));
+    if (rightChunk != m_Chunks.end())
+        for (int z = 0; z < CHUNK_SIZE; z++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                snapshot.SetBlock(PADDED_CHUNK_SIZE - 1, y + 1, z + 1, rightChunk->second->GetBlock(0, y, z));
+
+    // Fill -Z border
+    auto backChunk = m_Chunks.find(Vector2i(pos.x, pos.y - 1));
+    if (backChunk != m_Chunks.end())
+        for (int x = 0; x < CHUNK_SIZE; x++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                snapshot.SetBlock(x + 1, y + 1, 0, backChunk->second->GetBlock(x, y, CHUNK_SIZE - 1));
+
+    // Fill +Z border
+    auto frontChunk = m_Chunks.find(Vector2i(pos.x, pos.y + 1));
+    if (frontChunk != m_Chunks.end())
+        for (int x = 0; x < CHUNK_SIZE; x++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                snapshot.SetBlock(x + 1, y + 1, PADDED_CHUNK_SIZE - 1, frontChunk->second->GetBlock(x, y, 0));
+
+    return snapshot;
 }

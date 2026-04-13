@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Math/Matrix.h"
+#include "Math/Vector.h"
 #include "World/Entity/Component/Component.h"
 
 class Camera : public Component
@@ -53,6 +54,9 @@ public:
 
     Matrix4 GetViewMatrix() const;
     Matrix4 GetProjectionMatrix() const { return m_ProjectionMatrix; }
+
+    Vector3f GetForward() const;
+    Vector3f GetRight() const;
 
 private:
     void UpdateProjectionMatrix();

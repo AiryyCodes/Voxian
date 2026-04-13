@@ -16,6 +16,11 @@ struct ChunkSnapshot
         return Blocks[x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z)];
     }
 
+    void SetBlock(int x, int y, int z, uint16_t id)
+    {
+        Blocks[x + PADDED_CHUNK_SIZE * (y + PADDED_CHUNK_HEIGHT * z)] = id;
+    }
+
     const struct BlockProperties &GetBlockProperties(uint16_t blockId) const
     {
         return BlockProperties[blockId];

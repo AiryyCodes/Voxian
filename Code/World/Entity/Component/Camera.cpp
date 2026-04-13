@@ -31,3 +31,27 @@ void Camera::UpdateProjectionMatrix()
 {
     m_ProjectionMatrix = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearPlane, m_FarPlane);
 }
+
+Vector3f Camera::GetForward() const
+{
+    auto &transform = GetOwner().GetComponent<Transform>();
+    float yaw = glm::radians(transform.Rotation.y);
+    float pitch = glm::radians(m_Pitch);
+
+    return glm::normalize(Vector3f(
+        std::sin(yaw) * std::cos(pitch),
+        -std::sin(pitch),
+        std::cos(yaw) * std::cos(pitch)));
+}
+
+Vector3f Camera::GetRight() const
+{
+    auto &transform = GetOwner().GetComponent<Transform>();
+    float yaw = glm::radians(transform.Rotation.y);
+
+    // Right is perpendicular to forward on the XZ plane
+    return glm::normalize(Vector3f(
+        std::cos(yaw),
+        0.0f,
+        -std::sin(yaw)));
+}

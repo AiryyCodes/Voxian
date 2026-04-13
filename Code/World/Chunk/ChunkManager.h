@@ -7,6 +7,7 @@
 #include "World/Chunk/Terrain/TerrainNoise.h"
 #include "World/Entity/Chunk.h"
 
+#include <cstdint>
 #include <deque>
 #include <future>
 #include <unordered_map>
@@ -33,6 +34,7 @@ public:
     bool IsChunkLoaded(int x, int z);
 
     const Block *GetBlock(int x, int y, int z) const;
+    void SetBlock(int x, int y, int z, uint16_t id);
 
     const TerrainNoise &GetTerrainNoise() const { return m_Noise; }
 
@@ -42,6 +44,11 @@ private:
     void QueueChunk(Vector2i chunkPos);
     void PollPendingChunks();
     void UnloadChunks(int renderDistance, Vector2i playerChunkPos);
+
+    void MarkChunkDirty(Vector2i chunkPos);
+    void RebuildDirtyChunks();
+
+    ChunkSnapshot CreateSnapshotWithNeighbors(Ref<Chunk> chunk);
 
 private:
     static constexpr int MAX_CHUNKS_PER_FRAME = 4;
@@ -57,6 +64,8 @@ private:
     Vector2i m_LastPlayerChunkPos = {INT_MAX, INT_MAX};
     std::unordered_set<Vector2i> m_InQueue;
     std::vector<Ref<Chunk>> m_ChunksReadyToRegister;
+
+    std::unordered_set<Vector2i> m_DirtyChunks;
 
     Ref<TextureArray2D> m_ChunkTextureArray;
 

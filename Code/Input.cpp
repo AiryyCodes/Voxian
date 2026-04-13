@@ -7,6 +7,7 @@ Input::Input(Window &window)
 {
     glfwSetWindowUserPointer(m_Window->GetHandle(), this);
     glfwSetKeyCallback(m_Window->GetHandle(), KeyCallback);
+    glfwSetMouseButtonCallback(m_Window->GetHandle(), MouseButtonCallback);
 }
 
 Input::~Input()
@@ -16,6 +17,7 @@ Input::~Input()
 
     glfwSetKeyCallback(m_Window->GetHandle(), nullptr);
     glfwSetWindowUserPointer(m_Window->GetHandle(), nullptr);
+    glfwSetMouseButtonCallback(m_Window->GetHandle(), nullptr);
 }
 
 void Input::Update()
@@ -24,6 +26,11 @@ void Input::Update()
     {
         key.Previous = key.Current;
         key.IsDoubleTapped = false;
+    }
+
+    for (auto &button : m_MouseButtons)
+    {
+        button.Previous = button.Current;
     }
 }
 
@@ -71,6 +78,22 @@ float Input::GetMouseY() const
     double x, y;
     glfwGetCursorPos(m_Window->GetHandle(), &x, &y);
     return static_cast<float>(y);
+}
+
+bool Input::IsMouseButtonPressed(int button)
+{
+    if (button < 0 || button > GLFW_MOUSE_BUTTON_LAST)
+        return false;
+
+    return m_MouseButtons[button].Current && !m_MouseButtons[button].Previous;
+}
+
+bool Input::IsMouseButtonJustPressed(int button)
+{
+    if (button < 0 || button > GLFW_MOUSE_BUTTON_LAST)
+        return false;
+
+    return m_MouseButtons[button].Current && !m_MouseButtons[button].Previous;
 }
 
 void Input::SetCursorMode(int mode) const
@@ -121,5 +144,22 @@ void Input::KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
     if (action == GLFW_RELEASE)
     {
         self->m_Keys[key].Current = false;
+    }
+}
+
+void Input::MouseButtonCallback(GLFWwindow *window, int button, int action, int mods)
+{
+    auto *self = Get(window);
+    if (!self || button < 0 || button > GLFW_KEY_LAST)
+        return;
+
+    if (action == GLFW_PRESS)
+    {
+        self->m_MouseButtons[button].Current = true;
+    }
+
+    if (action == GLFW_RELEASE)
+    {
+        self->m_MouseButtons[button].Current = false;
     }
 }
