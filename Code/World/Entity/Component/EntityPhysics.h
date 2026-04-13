@@ -20,6 +20,9 @@ public:
 
     bool IsOnGround() const { return m_IsOnGround; }
 
+    bool IsFlying() const { return m_IsFlying; }
+    void SetFlying(bool flying) { m_IsFlying = flying; }
+
 private:
     void MoveAndCollide(Vector3f delta);
     std::vector<Vector3i> GetBlocksInAABB(const AABB &box, Vector3f delta);
@@ -32,4 +35,6 @@ private:
     float m_Gravity = 28.0f;
     Vector3f m_Velocity;
     bool m_IsOnGround;
+
+    bool m_IsFlying = false;
 };

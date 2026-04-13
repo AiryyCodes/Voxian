@@ -1,6 +1,5 @@
 #include "World/Entity/Component/EntityPhysics.h"
 #include "Engine.h"
-#include "Logger.h"
 #include "Math/Vector.h"
 #include "Physics/AABB.h"
 #include "World/Block/Block.h"
@@ -14,7 +13,8 @@ void EntityPhysics::OnUpdate(float delta)
 {
     m_IsOnGround = false;
 
-    m_Velocity.y -= m_Gravity * delta;
+    if (!m_IsFlying)
+        m_Velocity.y -= m_Gravity * delta;
 
     MoveAndCollide(Vector3f(m_Velocity.x * delta, 0, 0));
     MoveAndCollide(Vector3f(0, m_Velocity.y * delta, 0));
@@ -57,7 +57,7 @@ void EntityPhysics::MoveAndCollide(Vector3f delta)
         box = GetOwner().GetAABB();
     }
 
-    if (delta.y < 0 && m_Velocity.y == 0)
+    if (!m_IsFlying && delta.y < 0 && m_Velocity.y == 0)
         m_IsOnGround = true;
 }
 

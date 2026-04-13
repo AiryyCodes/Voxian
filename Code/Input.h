@@ -17,6 +17,7 @@ public:
     bool IsKeyDown(int key) const;
     bool IsKeyJustDown(int key) const;
     bool IsKeyJustReleased(int key) const;
+    bool IsKeyDoubleTapped(int key) const;
 
     float GetMouseX() const;
     float GetMouseY() const;
@@ -36,6 +37,8 @@ private:
     {
         bool Current = false;
         bool Previous = false;
+        float LastPressTime = -100.0f;
+        bool IsDoubleTapped = false;
     };
 
     std::array<KeyState, GLFW_KEY_LAST + 1> m_Keys = {};

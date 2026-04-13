@@ -21,7 +21,10 @@ Input::~Input()
 void Input::Update()
 {
     for (auto &key : m_Keys)
+    {
         key.Previous = key.Current;
+        key.IsDoubleTapped = false;
+    }
 }
 
 bool Input::IsKeyDown(int key) const
@@ -46,6 +49,14 @@ bool Input::IsKeyJustReleased(int key) const
         return false;
 
     return !m_Keys[key].Current && m_Keys[key].Previous;
+}
+
+bool Input::IsKeyDoubleTapped(int key) const
+{
+    if (key < 0 || key > GLFW_KEY_LAST)
+        return false;
+
+    return m_Keys[key].IsDoubleTapped;
 }
 
 float Input::GetMouseX() const
@@ -84,7 +95,31 @@ void Input::KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
         return;
 
     if (action == GLFW_PRESS)
+    {
+        double currentTime = glfwGetTime();
+        double deltaTime = currentTime - self->m_Keys[key].LastPressTime;
+
+        // Standard double-tap threshold is ~0.25 seconds
+        if (deltaTime < 0.25)
+        {
+            // Trigger Double Tap Logic
+            self->m_Keys[key].IsDoubleTapped = true;
+
+            // Set to a very small value to prevent a "triple tap"
+            // from counting as two double taps
+            self->m_Keys[key].LastPressTime = -100.0;
+        }
+        else
+        {
+            self->m_Keys[key].LastPressTime = currentTime;
+            self->m_Keys[key].IsDoubleTapped = false;
+        }
+
         self->m_Keys[key].Current = true;
+    }
+
     if (action == GLFW_RELEASE)
+    {
         self->m_Keys[key].Current = false;
+    }
 }

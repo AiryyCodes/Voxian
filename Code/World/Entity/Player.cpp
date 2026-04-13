@@ -74,8 +74,9 @@ void PlayerInput::OnUpdate(float delta)
     Input &input = EngineContext::GetInput();
 
     // Get forward/right from player yaw only (ignore pitch for movement)
-    glm::vec3 localForward(0.f, 0.f, -1.f);
-    glm::vec3 localRight(1.f, 0.f, 0.f);
+    glm::vec3 localForward(0.0f, 0.0f, -1.0f);
+    glm::vec3 localRight(1.0f, 0.0f, 0.0f);
+    glm::vec3 localUp(0.0f, 1.0f, 0.0f);
     Matrix4 transformMatrix = transform.GetMatrix();
     glm::vec3 forward = glm::normalize(glm::vec3(transformMatrix * glm::vec4(localForward, 0.f)));
     glm::vec3 right = glm::normalize(glm::vec3(transformMatrix * glm::vec4(localRight, 0.f)));
@@ -99,26 +100,73 @@ void PlayerInput::OnUpdate(float delta)
 
     Vector3f vel = physics.GetVelocity();
     bool onGround = physics.IsOnGround();
-    bool sprinting = input.IsKeyDown(GLFW_KEY_LEFT_SHIFT) && glm::length(movement) > 0.f;
-    float targetSpeed = sprinting ? m_SprintSpeed : m_Speed;
+    bool sprinting = input.IsKeyDown(GLFW_KEY_LEFT_SHIFT) && !physics.IsFlying() && glm::length(movement) > 0.f;
+
+    float targetSpeed = m_Speed;
+    if (physics.IsFlying())
+        targetSpeed = m_FlightSpeed;
+    else if (sprinting)
+        targetSpeed = m_SprintSpeed;
+
+    float currentAccel, currentDecel;
+    if (onGround && !physics.IsFlying())
+    {
+        currentAccel = m_GroundAccel;
+        currentDecel = m_GroundDecel;
+    }
+    else
+    {
+        currentAccel = m_AirAccel;
+        currentDecel = m_AirAccel;
+    }
 
     if (glm::length(movement) > 0.f)
     {
         glm::vec3 dir = glm::normalize(movement);
-        float accel = onGround ? 16.0f : 4.0f;
-        vel.x = glm::mix(vel.x, dir.x * targetSpeed, glm::min(accel * delta, 1.0f));
-        vel.z = glm::mix(vel.z, dir.z * targetSpeed, glm::min(accel * delta, 1.0f));
+        // Interpolate toward target velocity
+        vel.x = glm::mix(vel.x, dir.x * targetSpeed, glm::min(currentAccel * delta, 1.0f));
+        vel.z = glm::mix(vel.z, dir.z * targetSpeed, glm::min(currentAccel * delta, 1.0f));
     }
     else
     {
-        float decel = onGround ? 16.0f : 0.0f;
-        vel.x = glm::mix(vel.x, 0.0f, glm::min(decel * delta, 1.0f));
-        vel.z = glm::mix(vel.z, 0.0f, glm::min(decel * delta, 1.0f));
+        if (glm::length(glm::vec2(vel.x, vel.z)) < 0.1f)
+        {
+            vel.x = 0.0f;
+            vel.z = 0.0f;
+        }
+        else
+        {
+            vel.x = glm::mix(vel.x, 0.0f, glm::min(currentDecel * delta, 1.0f));
+            vel.z = glm::mix(vel.z, 0.0f, glm::min(currentDecel * delta, 1.0f));
+        }
     }
 
     // Jump
-    if (input.IsKeyDown(GLFW_KEY_SPACE) && onGround)
+    if (input.IsKeyDown(GLFW_KEY_SPACE) && onGround && !physics.IsFlying())
         vel.y = m_JumpForce;
+
+    if (input.IsKeyDoubleTapped(GLFW_KEY_SPACE))
+    {
+        physics.SetFlying(!physics.IsFlying());
+        vel.y = 0.0f;
+    }
+
+    if (physics.IsFlying())
+    {
+        float verticalTarget = 0.0f;
+
+        if (input.IsKeyDown(GLFW_KEY_SPACE))
+            verticalTarget = targetSpeed;
+        else if (input.IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+            verticalTarget = -targetSpeed;
+
+        vel.y = glm::mix(vel.y, verticalTarget, glm::min(currentAccel * delta, 1.0f));
+    }
+    else if (input.IsKeyDown(GLFW_KEY_SPACE) && onGround)
+    {
+        // Regular jump remains snappy
+        vel.y = m_JumpForce;
+    }
 
     physics.SetVelocity(Vector3f(vel.x, vel.y, vel.z));
 
