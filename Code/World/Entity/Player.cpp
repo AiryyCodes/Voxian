@@ -213,12 +213,38 @@ void PlayerInput::OnUpdate(float delta)
         Vector3f origin = transform.Position + Vector3f(0.0f, 1.62f, 0.0f);
         Vector3f dir = camera.GetForward();
 
-        RaycastResult result = Raycast(origin, -dir, 6.0f);
+        RaycastResult result = Raycast(origin, dir, 6.0f);
 
         if (result.Hit)
         {
             auto &chunkManager = EngineContext::GetWorld().GetChunkManager();
             chunkManager.SetBlock(result.BlockPos.x, result.BlockPos.y, result.BlockPos.z, 0);
+        }
+    }
+
+    if (input.IsMouseButtonJustPressed(GLFW_MOUSE_BUTTON_RIGHT))
+    {
+        Vector3f origin = transform.Position + Vector3f(0.0f, 1.62f, 0.0f);
+        Vector3f dir = camera.GetForward();
+
+        RaycastResult result = Raycast(origin, dir, 6.0f);
+
+        if (result.Hit)
+        {
+            // Place block in the adjacent position using the face normal
+            Vector3i placePos = result.BlockPos + result.Normal;
+
+            // Make sure we're not placing inside the player
+            AABB playerBox = GetOwner().GetAABB();
+            AABB placeBox = {
+                Vector3f(placePos),
+                Vector3f(placePos) + 1.0f};
+
+            if (!AABB::Intersects(playerBox, placeBox))
+            {
+                auto &chunkManager = EngineContext::GetWorld().GetChunkManager();
+                chunkManager.SetBlock(placePos.x, placePos.y, placePos.z, m_SelectedBlock);
+            }
         }
     }
 }

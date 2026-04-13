@@ -39,9 +39,9 @@ Vector3f Camera::GetForward() const
     float pitch = glm::radians(m_Pitch);
 
     return glm::normalize(Vector3f(
-        std::sin(yaw) * std::cos(pitch),
-        -std::sin(pitch),
-        std::cos(yaw) * std::cos(pitch)));
+        -std::sin(yaw) * std::cos(pitch),
+        std::sin(pitch),
+        -std::cos(yaw) * std::cos(pitch)));
 }
 
 Vector3f Camera::GetRight() const
