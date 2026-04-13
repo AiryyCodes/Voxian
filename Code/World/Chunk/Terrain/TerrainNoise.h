@@ -22,7 +22,7 @@ struct HeightRange
 struct TerrainConfig
 {
     int SeaLevel = 128;
-    HeightRange HeightRange;
+    struct HeightRange HeightRange;
     std::vector<ClimateMapConfig> ClimateMaps;
     std::vector<BiomeRule> BiomeRules;
     std::string FallbackBiome = "plains";
