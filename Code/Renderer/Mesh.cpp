@@ -37,6 +37,7 @@ void Mesh::Init(const void *data, size_t dataSize, std::initializer_list<AttribE
         case AttribType::Float:
         case AttribType::Float2:
         case AttribType::Float3:
+        case AttribType::Float4:
             glVertexAttribPointer(index, info.Components, info.GlType,
                                   element.Normalized, stride, (void *)offset);
             break;

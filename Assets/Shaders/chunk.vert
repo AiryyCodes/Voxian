@@ -2,6 +2,7 @@
 
 layout(location = 0) in uint Data1;
 layout(location = 1) in uint Data2;
+layout(location = 2) in vec4 UVBounds;
 
 uniform mat4 u_Transform;
 uniform mat4 u_View;
@@ -32,17 +33,18 @@ const vec2 uvs[4] = vec2[](
 
 void main()
 {
-    float x = float( Data1        & 0x3Fu);
-    float y = float((Data1 >>  6) & 0x1FFu);
-    float z = float((Data1 >> 15) & 0x3Fu);
-    int normalIndex  = int((Data1 >> 21) & 0x7u);
-    int cornerIndex  = int( Data2        & 0x3u);
-    v_TextureIndex   = int((Data2 >>  2) & 0xFFFFu);
+    float x = float(Data1 & 0x3FFu) / 16.0;
+    float y = float((Data1 >> 10) & 0xFFFu) / 16.0;
+    float z = float((Data1 >> 22) & 0x3FFu) / 16.0;
+    int normalIndex  = int((Data2 >> 18) & 0x7u);
+    int cornerIndex  = int(Data2 & 0x3u);
+    v_TextureIndex   = int((Data2 >> 2) & 0xFFFFu);
 
     v_Normal = normals[normalIndex];
-    v_UV     = uvs[cornerIndex];
+    vec2 uvCorner = uvs[cornerIndex];
+    v_UV = mix(UVBounds.xy, UVBounds.zw, uvCorner);
     
-    float ao = float((Data2 >> 18) & 0x3u) / 3.0;
+    float ao = float((Data2 >> 21) & 0x3u) / 3.0;
     v_AO = ao;
 
     gl_Position = u_Projection * u_View * u_Transform * vec4(u_ChunkOrigin + vec3(x, y, z), 1.0);

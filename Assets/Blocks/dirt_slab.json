@@ -1,7 +1,7 @@
 {
-    "Name": "Dirt",
-    "Id": "dirt",
-    "Model": "Block/cube_all",
+    "Name": "Dirt Slab",
+    "Id": "dirt_slab",
+    "Model": "Block/slab",
     "Textures": {
         "North": "Block/dirt",
         "South": "Block/dirt",
@@ -10,5 +10,7 @@
         "Up": "Block/dirt",
         "Down": "Block/dirt"
     },
-    "Properties": {}
+    "Properties": {
+        "IsFullCube": false
+    }
 }

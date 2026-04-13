@@ -243,7 +243,7 @@ void PlayerInput::OnUpdate(float delta)
             if (!AABB::Intersects(playerBox, placeBox))
             {
                 auto &chunkManager = EngineContext::GetWorld().GetChunkManager();
-                chunkManager.SetBlock(placePos.x, placePos.y, placePos.z, m_SelectedBlock);
+                chunkManager.SetBlock(placePos.x, placePos.y, placePos.z, Blocks::DIRT_SLAB);
             }
         }
     }

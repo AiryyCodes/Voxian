@@ -1,0 +1,73 @@
+{
+	"Elements": [
+		{
+			"Name": "cube",
+			"From": [
+				0,
+				0,
+				0
+			],
+			"To": [
+				16,
+				8,
+				16
+			],
+			"Faces": {
+				"North": {
+					"UV": [
+						0,
+						0,
+						16,
+						8
+					],
+					"Texture": "#North"
+				},
+				"East": {
+					"UV": [
+						0,
+						0,
+						16,
+						8
+					],
+					"Texture": "#East"
+				},
+				"South": {
+					"UV": [
+						0,
+						0,
+						16,
+						8
+					],
+					"Texture": "#South"
+				},
+				"West": {
+					"UV": [
+						0,
+						0,
+						16,
+						8
+					],
+					"Texture": "#West"
+				},
+				"Up": {
+					"UV": [
+						0,
+						0,
+						16,
+						16
+					],
+					"Texture": "#Up"
+				},
+				"Down": {
+					"UV": [
+						0,
+						0,
+						16,
+						16
+					],
+					"Texture": "#Down"
+				}
+			}
+		}
+	]
+}

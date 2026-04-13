@@ -5,6 +5,7 @@
 struct BlockProperties
 {
     bool IsAir = false;
+    bool IsFullCube = true;
 
     BlockProperties SetAir(bool isAir)
     {
@@ -18,6 +19,7 @@ struct BlockProperties
     {
         using T = BlockProperties;
         static constexpr auto value = glz::object(
-            "IsAir", &T::IsAir);
+            &T::IsAir,
+            &T::IsFullCube);
     };
 };

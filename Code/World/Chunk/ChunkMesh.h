@@ -1,12 +1,15 @@
 #pragma once
 
+#include "Math/Vector.h"
+
 #include <vector>
 #include <cstdint>
 
 struct ChunkVertex
 {
-    uint32_t Data1; // x:6, y:9, z:6, normalIndex:3 = 24 bits used
-    uint32_t Data2; // cornerIndex:2, textureIndex:16, ao:1 = 19 bits used
+    uint32_t Data1;
+    uint32_t Data2;
+    Vector4f UVBounds;
 };
 
 struct ChunkMeshData
@@ -16,16 +19,32 @@ struct ChunkMeshData
 };
 
 inline ChunkVertex MakeVertex(
-    int x, int y, int z,
+    float x, float y, float z,
     int normalIndex, // 0-5
     int cornerIndex, // 0-3
     int textureIndex,
-    float ao)
+    float ao,
+    const Vector4f &uvBounds)
 {
-    ChunkVertex v;
-    v.Data1 = (x & 0x3F) | ((y & 0x1FF) << 6) | ((z & 0x3F) << 15) | ((normalIndex & 0x7) << 21);
+    auto encodeCoord = [](float value, uint32_t maxValue)
+    {
+        int encoded = static_cast<int>(value * 16.0f);
+        if (encoded < 0)
+            encoded = 0;
+        if (encoded > static_cast<int>(maxValue))
+            encoded = static_cast<int>(maxValue);
+        return static_cast<uint32_t>(encoded);
+    };
 
-    int aoInt = static_cast<int>(ao * 3.0f + 0.5f);
-    v.Data2 = (cornerIndex & 0x3) | ((textureIndex & 0xFFFF) << 2) | ((aoInt & 0x3) << 18);
+    uint32_t xi = encodeCoord(x, 0x3FFu);
+    uint32_t yi = encodeCoord(y, 0xFFFu);
+    uint32_t zi = encodeCoord(z, 0x3FFu);
+
+    ChunkVertex v;
+    v.Data1 = xi | (yi << 10) | (zi << 22);
+
+    uint32_t aoInt = static_cast<uint32_t>(ao * 3.0f + 0.5f);
+    v.Data2 = (cornerIndex & 0x3u) | ((textureIndex & 0xFFFFu) << 2) | ((static_cast<uint32_t>(normalIndex) & 0x7u) << 18) | ((aoInt & 0x3u) << 21);
+    v.UVBounds = uvBounds;
     return v;
 }

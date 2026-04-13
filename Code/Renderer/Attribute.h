@@ -9,6 +9,7 @@ enum class AttribType
     Float,
     Float2,
     Float3,
+    Float4,
 };
 
 struct AttribElement
@@ -37,6 +38,8 @@ struct AttribInfo
             return {GL_FLOAT, 2, 8};
         case AttribType::Float3:
             return {GL_FLOAT, 3, 12};
+        case AttribType::Float4:
+            return {GL_FLOAT, 4, 16};
         default:
             LOG_WARNING("AttribInfo::FromType got invalid type");
             return {};

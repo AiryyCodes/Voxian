@@ -17,52 +17,82 @@
 
 void BlockRegistry::Init()
 {
-    // Manually register air block to ensure it always has ID 0
     RegisterBlock("air", CreateScope<Block>(BlockProperties().SetAir(true)));
 
     std::vector<std::filesystem::path> paths;
     for (const auto &entry : std::filesystem::directory_iterator("Assets/Blocks"))
         if (entry.path().extension() == ".json" && entry.path().filename() != "air.json")
             paths.push_back(entry.path());
-
     std::sort(paths.begin(), paths.end());
 
-    // Read all blocks from JSON file and register them
-    // Iterate through Blocks folder
+    // Collect all textures and bake models
     for (const auto &path : paths)
     {
         LOG_INFO("Loading block data: {}", path.string());
 
-        if (path.extension() == ".json")
+        std::ifstream file(path);
+        if (!file.is_open())
         {
-            std::ifstream file(path);
-            if (!file.is_open())
-            {
-                LOG_ERROR("Failed to open file: {}", path.string());
-                continue;
-            }
-
-            std::string jsonContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-            auto blockData = glz::read_json<BlockData>(jsonContent);
-            if (!blockData)
-            {
-                LOG_ERROR("Failed to parse block data from file: {}", path.string());
-                continue;
-            }
-
-            if (!blockData->Validate())
-            {
-                LOG_ERROR("Validation failed for block data in file: {}", path.string());
-                continue;
-            }
-
-            blockData->ResolveTextures();
-
-            RegisterBlock(blockData->Id, CreateScope<Block>(blockData->Properties));
-            m_BlockDataMap[blockData->Id] = *blockData;
+            LOG_ERROR("Failed to open file: {}", path.string());
+            continue;
         }
+
+        std::string jsonContent((std::istreambuf_iterator<char>(file)),
+                                std::istreambuf_iterator<char>());
+
+        auto blockData = glz::read_json<BlockData>(jsonContent);
+        if (!blockData)
+        {
+            LOG_ERROR("Failed to parse block data: {}", path.string());
+            continue;
+        }
+        if (!blockData->Validate())
+        {
+            LOG_ERROR("Validation failed: {}", path.string());
+            continue;
+        }
+
+        blockData->ResolveTextures();
+
+        // Parse model
+        const std::string modelPath = "Assets/Models/" + blockData->Model + ".json";
+        std::ifstream modelFile(modelPath);
+        if (!modelFile.is_open())
+        {
+            LOG_ERROR("Failed to open model: {}", modelPath);
+            continue;
+        }
+
+        std::string modelJson((std::istreambuf_iterator<char>(modelFile)),
+                              std::istreambuf_iterator<char>());
+        Model model;
+        auto modelErr = glz::read_json(model, modelJson);
+        if (modelErr)
+        {
+            LOG_ERROR("Failed to parse model: {}", modelPath);
+            continue;
+        }
+
+        // Resolve texture variables and register textures
+        auto vars = blockData->ResolveTextureVariables(model);
+        m_ModelRegistry.Load(blockData->Id, model, vars, m_TextureRegistry);
+
+        RegisterBlock(blockData->Id, CreateScope<Block>(blockData->Properties));
+        m_BlockDataMap[blockData->Id] = *blockData;
     }
+
+    if (m_TextureRegistry.GetLayerCount() == 0)
+    {
+        LOG_ERROR("No textures registered - skipping texture array build");
+        return;
+    }
+
+    // Build texture array once — all layers finalized
+    m_TextureRegistry.Build(16, 16);
+
+    LOG_INFO("Registered {} blocks, {} textures",
+             m_BlockDataMap.size(),
+             m_TextureRegistry.GetLayerCount());
 }
 
 uint16_t BlockRegistry::RegisterBlock(const std::string &id, Scope<Block> block)
@@ -114,18 +144,39 @@ uint16_t BlockRegistry::GetBlockIndexById(const std::string &id) const
     return 0; // Default to air block index if not found
 }
 
+const std::string &BlockRegistry::GetBlockNameByIndex(uint16_t index) const
+{
+    auto it = m_IdToName.find(index);
+    static const std::string empty = "";
+    return it != m_IdToName.end() ? it->second : empty;
+}
+
 bool BlockRegistry::IsIdRegistered(const std::string &id) const
 {
     return m_Blocks.contains(id);
 }
 
-std::vector<std::string> BlockRegistry::GetAllBlockTextures() const
+const BakedModel *BlockRegistry::GetBakedModel(const std::string &id) const
 {
-    std::vector<std::string> textures;
-    for (const auto &[id, block] : m_BlockDataMap)
-    {
-        if (!block.Texture.empty())
-            textures.push_back(block.Texture);
-    }
-    return textures;
+    return m_ModelRegistry.Get(id);
+}
+
+int BlockRegistry::GetTextureLayer(uint16_t blockIndex, const Direction &direction) const
+{
+    auto nameIt = m_IdToName.find(blockIndex);
+    if (nameIt == m_IdToName.end())
+        return 0;
+
+    const BakedModel *model = m_ModelRegistry.Get(nameIt->second);
+    if (!model || model->Elements.empty())
+        return 0;
+
+    // Find the face matching this direction
+    const std::string faceName = Direction::ToString(direction);
+    for (const auto &elem : model->Elements)
+        for (const auto &face : elem.Faces)
+            if (face.NormalIndex == s_NormalIndexMap.at(direction))
+                return face.TextureLayer;
+
+    return 0;
 }

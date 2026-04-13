@@ -70,8 +70,9 @@ void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
         meshData.Indices.data(),
         meshData.Indices.size(),
         {
-            {AttribType::UInt, false}, // Data1
-            {AttribType::UInt, false}, // Data2
+            {AttribType::UInt, false},   // Data1
+            {AttribType::UInt, false},   // Data2
+            {AttribType::Float4, false}, // UVBounds
         });
 
     meshRenderer.GetMesh().SetTexture(texture);

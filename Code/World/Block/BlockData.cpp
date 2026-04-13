@@ -2,52 +2,78 @@
 #include "BlockRegistry.h"
 #include "Engine.h"
 #include "Logger.h"
+#include "Renderer/Model/Model.h"
 
 void BlockData::ResolveTextures()
 {
-    // Get the texture path from the current Texture field, or default to "null" if it's empty
-    std::string texturePath = Texture.empty() ? "null" : Texture;
-
-    // Check if the texture path is already in the registry
     BlockRegistry &registry = EngineContext::GetBlockRegistry();
-    if (registry.IsIdRegistered(texturePath))
+
+    for (auto &[face, texturePath] : Textures)
     {
-        // If it is, we can just use the existing texture
-        Texture = texturePath;
-    }
-    else
-    {
-        // Otherwise, we need to resolve it to a valid texture path
+        if (registry.IsIdRegistered(texturePath))
+            continue; // already a resolved/registered path
+
         std::string resolvedPath = "Assets/Textures/" + texturePath + ".png";
         if (std::filesystem::exists(resolvedPath))
         {
-            Texture = resolvedPath;
+            texturePath = resolvedPath;
         }
         else
         {
-            LOG_ERROR("Texture file not found for block '{}': {}", Id, resolvedPath);
-            Texture = "Assets/Textures/null.png"; // Fallback to null texture if not found
+            LOG_ERROR("Texture file not found for block '{}' face '{}': {}", Id, face, resolvedPath);
+            texturePath = "Assets/Textures/null.png";
         }
     }
+}
+
+std::unordered_map<std::string, std::string> BlockData::ResolveTextureVariables(const struct Model &model) const
+{
+    std::unordered_map<std::string, std::string> vars;
+
+    for (const auto &elem : model.elements)
+        for (const auto &[faceName, face] : elem.Faces)
+            vars[face.Texture] = "";
+
+    for (auto &[variable, path] : vars)
+    {
+        const std::string key = variable.substr(1); // strip "#"
+        auto it = Textures.find(key);
+        if (it != Textures.end())
+        {
+            path = it->second; // already resolved by ResolveTextures()
+        }
+        else
+        {
+            LOG_ERROR("No texture entry for variable '{}' in block '{}'", variable, Id);
+            path = "Assets/Textures/null.png";
+        }
+    }
+
+    return vars;
 }
 
 bool BlockData::Validate() const
 {
     if (Name.empty())
     {
-        LOG_ERROR("BlockData validation failed: Name is empty");
+        LOG_ERROR("Block has no Name");
         return false;
     }
 
     if (Id.empty())
     {
-        LOG_ERROR("BlockData validation failed: Id is empty");
+        LOG_ERROR("Block has no Id");
         return false;
+    }
+
+    if (Model.empty())
+    {
+        LOG_ERROR("Block {} has no Model", Id);
     }
 
     if (!Properties.Validate())
     {
-        LOG_ERROR("BlockData validation failed: Properties are invalid");
+        LOG_ERROR("Properties are invalid");
         return false;
     }
 

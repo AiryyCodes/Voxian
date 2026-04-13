@@ -1,7 +1,14 @@
 {
     "Name": "Stone",
     "Id": "stone",
-    "Texture": "Block/stone",
-    "Properties": {
-    }
+    "Model": "Block/cube_all",
+    "Textures": {
+        "North": "Block/stone",
+        "South": "Block/stone",
+        "East": "Block/stone",
+        "West": "Block/stone",
+        "Up": "Block/stone",
+        "Down": "Block/stone"
+    },
+    "Properties": {}
 }

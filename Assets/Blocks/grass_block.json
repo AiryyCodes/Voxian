@@ -1,7 +1,14 @@
 {
     "Name": "Grass Block",
     "Id": "grass_block",
-    "Texture": "Block/grass_block",
-    "Properties": {
-    }
+    "Model": "Block/cube_all",
+    "Textures": {
+        "North": "Block/grass_block",
+        "South": "Block/grass_block",
+        "East": "Block/grass_block",
+        "West": "Block/grass_block",
+        "Up": "Block/grass_block",
+        "Down": "Block/grass_block"
+    },
+    "Properties": {}
 }

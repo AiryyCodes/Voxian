@@ -1,5 +1,7 @@
 #include "ChunkMeshGenerator.h"
+#include "Engine.h"
 #include "Math/Vector.h"
+#include "Renderer/Model/Model.h"
 #include "Util/Direction.h"
 #include "World/Block/BlockProperties.h"
 #include "World/Entity/Chunk.h"
@@ -8,12 +10,6 @@
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
-
-struct FaceIndices
-{
-    int v0, v1, v2, v3;
-    Vector2f UVs[4];
-};
 
 ChunkMeshGenerator::ChunkMeshGenerator(Chunk &chunk)
     : m_Chunk(chunk)
@@ -30,36 +26,6 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
     meshData.Vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 4);
     meshData.Indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 6);
 
-    static const std::unordered_map<Direction, FaceIndices> faceIndicesMap = {
-        {Direction::Up, {2, 6, 7, 3, {{0, 0}, {1, 0}, {1, 1}, {0, 1}}}},
-        {Direction::Down, {1, 5, 4, 0, {{0, 0}, {1, 0}, {1, 1}, {0, 1}}}},
-        {Direction::Left, {1, 0, 2, 3, {{0, 0}, {1, 0}, {1, 1}, {0, 1}}}},
-        {Direction::Right, {4, 5, 7, 6, {{0, 0}, {1, 0}, {1, 1}, {0, 1}}}},
-        {Direction::Forward, {6, 2, 0, 4, {{0, 0}, {1, 0}, {1, 1}, {0, 1}}}},
-        {Direction::Backward, {3, 7, 5, 1, {{0, 0}, {1, 0}, {1, 1}, {0, 1}}}},
-    };
-
-    // Corner positions of a unit cube — index matches FaceIndices v0-v3
-    static const Vector3i corners[8] = {
-        {0, 0, 0},
-        {0, 0, 1},
-        {0, 1, 0},
-        {0, 1, 1},
-        {1, 0, 0},
-        {1, 0, 1},
-        {1, 1, 0},
-        {1, 1, 1},
-    };
-
-    static const std::unordered_map<Direction, int> normalIndexMap = {
-        {Direction::Right, 0},
-        {Direction::Left, 1},
-        {Direction::Up, 2},
-        {Direction::Down, 3},
-        {Direction::Forward, 4},
-        {Direction::Backward, 5},
-    };
-
     static const std::array<Vector3i, 6> normalMap = {
         Vector3i(1, 0, 0),
         Vector3i(-1, 0, 0),
@@ -68,6 +34,8 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
         Vector3i(0, 0, -1),
         Vector3i(0, 0, 1),
     };
+
+    const BlockRegistry &blockRegistry = EngineContext::GetBlockRegistry();
 
     for (int x = 0; x < CHUNK_SIZE; ++x)
     {
@@ -83,56 +51,70 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                 if (properties.IsAir)
                     continue;
 
-                int textureIndex = blockId - 1;
+                const std::string &blockName = blockRegistry.GetBlockNameByIndex(blockId);
+                const BakedModel *model = blockRegistry.GetBakedModel(blockName);
+                if (!model)
+                    continue;
+
+                const Vector3f blockPos = Vector3f(x, y, z);
 
                 for (const auto &direction : Direction::GetAllDirections())
                 {
                     Vector3i relativePos = Vector3i(x, y, z) + direction.ToVector();
                     uint16_t neighborId = snapshot.GetBlock(relativePos.x + 1, relativePos.y + 1, relativePos.z + 1);
                     const BlockProperties &neighborProperties = snapshot.GetBlockProperties(neighborId);
+                    if (neighborId != 0 && !neighborProperties.IsAir && neighborProperties.IsFullCube)
+                        continue; // only cull if neighbor is a full opaque cube
 
-                    if (neighborId != 0 && !neighborProperties.IsAir)
-                        continue;
-
-                    const FaceIndices &face = faceIndicesMap.at(direction);
-                    int normalIndex = normalIndexMap.at(direction);
-                    unsigned int baseIndex = meshData.Vertices.size();
-
+                    int normalIndex = s_NormalIndexMap.at(direction);
                     auto ao = GetVertexAOs(snapshot, Vector3i(x, y, z), normalMap[normalIndex]);
 
                     // Emit 4 packed vertices
-                    for (int i = 0; i < 4; ++i)
+                    for (const auto &elem : model->Elements)
                     {
-                        int vi = (&face.v0)[i]; // v0, v1, v2, v3
-                        Vector3i c = corners[vi];
-                        meshData.Vertices.push_back(MakeVertex(
-                            x + c.x, y + c.y, z + c.z,
-                            normalIndex,
-                            i, // corner index 0-3 maps to UV in shader
-                            textureIndex,
-                            ao[i]));
-                    }
+                        for (const auto &bakedFace : elem.Faces)
+                        {
+                            if (bakedFace.NormalIndex != normalIndex)
+                                continue;
 
-                    float diag1 = ao[0] + ao[2];
-                    float diag2 = ao[1] + ao[3];
+                            unsigned int baseIndex = meshData.Vertices.size();
 
-                    if (diag1 > diag2)
-                    {
-                        meshData.Indices.push_back(baseIndex + 0);
-                        meshData.Indices.push_back(baseIndex + 1);
-                        meshData.Indices.push_back(baseIndex + 2);
-                        meshData.Indices.push_back(baseIndex + 0);
-                        meshData.Indices.push_back(baseIndex + 2);
-                        meshData.Indices.push_back(baseIndex + 3);
-                    }
-                    else
-                    {
-                        meshData.Indices.push_back(baseIndex + 1);
-                        meshData.Indices.push_back(baseIndex + 2);
-                        meshData.Indices.push_back(baseIndex + 3);
-                        meshData.Indices.push_back(baseIndex + 1);
-                        meshData.Indices.push_back(baseIndex + 3);
-                        meshData.Indices.push_back(baseIndex + 0);
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                // Baked positions are in 0-1 block space, offset by block pos
+                                Vector3f pos = blockPos + bakedFace.Positions[i];
+
+                                meshData.Vertices.push_back(MakeVertex(
+                                    pos.x, pos.y, pos.z,
+                                    normalIndex,
+                                    i,
+                                    bakedFace.TextureLayer,
+                                    ao[i],
+                                    bakedFace.UVs));
+                            }
+
+                            float diag1 = ao[0] + ao[2];
+                            float diag2 = ao[1] + ao[3];
+
+                            if (diag1 > diag2)
+                            {
+                                meshData.Indices.push_back(baseIndex + 0);
+                                meshData.Indices.push_back(baseIndex + 1);
+                                meshData.Indices.push_back(baseIndex + 2);
+                                meshData.Indices.push_back(baseIndex + 0);
+                                meshData.Indices.push_back(baseIndex + 2);
+                                meshData.Indices.push_back(baseIndex + 3);
+                            }
+                            else
+                            {
+                                meshData.Indices.push_back(baseIndex + 1);
+                                meshData.Indices.push_back(baseIndex + 2);
+                                meshData.Indices.push_back(baseIndex + 3);
+                                meshData.Indices.push_back(baseIndex + 1);
+                                meshData.Indices.push_back(baseIndex + 3);
+                                meshData.Indices.push_back(baseIndex + 0);
+                            }
+                        }
                     }
                 }
             }

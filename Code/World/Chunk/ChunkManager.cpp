@@ -2,7 +2,6 @@
 #include "ChunkSnapshot.h"
 #include "Engine.h"
 #include "Math/Vector.h"
-#include "Renderer/Texture.h"
 #include "Util/Memory.h"
 #include "World/Block/BlockRegistry.h"
 #include "World/Entity/Component/Chunk/ChunkGenerator.h"
@@ -20,10 +19,8 @@
 void ChunkManager::Init()
 {
     BlockRegistry &blockRegistry = EngineContext::GetBlockRegistry();
-    std::vector<std::string> textures = blockRegistry.GetAllBlockTextures();
 
-    m_ChunkTextureArray = CreateRef<TextureArray2D>();
-    m_ChunkTextureArray->Init(16, 16, textures.size(), textures, GL_RGB);
+    m_ChunkTextureArray = blockRegistry.GetTextureArray();
 
     m_Noise.Init();
 }
@@ -175,6 +172,13 @@ void ChunkManager::PollPendingChunks()
         if (it->second.MeshDataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
         {
             ChunkMeshData meshData = it->second.MeshDataFuture.get();
+
+            if (!m_ChunkTextureArray)
+            {
+                LOG_ERROR("ChunkTextureArray is null - was ChunkManager::Init() called after BlockRegistry::InitGL()?");
+                continue;
+            }
+
             it->second.Chunk->UploadMesh(meshData, m_ChunkTextureArray);
 
             m_ChunksReadyToRegister.push_back(it->second.Chunk);
