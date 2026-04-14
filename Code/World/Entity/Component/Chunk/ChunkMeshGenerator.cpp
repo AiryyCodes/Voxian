@@ -101,7 +101,10 @@ ChunkMeshGroup ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                             for (int i = 0; i < 4; ++i)
                             {
                                 Vector3f pos = blockPos + bakedFace.Positions[i];
-                                ao[i] = GetVertexAO(snapshot, pos, blockPos, normalMap[normalIndex]);
+                                if (elem.NoAmbientOcclusion)
+                                    ao[i] = 1.0f;
+                                else
+                                    ao[i] = GetVertexAO(snapshot, pos, blockPos, normalMap[normalIndex]);
                             }
 
                             unsigned int baseIndex = destData.Vertices.size();

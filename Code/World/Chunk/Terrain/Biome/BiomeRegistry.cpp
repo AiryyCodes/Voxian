@@ -25,7 +25,8 @@ void BiomeRegistry::LoadAll(const std::string &directory)
         auto biome = glz::read_json<BiomeConfig>(ss.str());
         if (!biome)
         {
-            LOG_ERROR("Failed to parse biome: {}", entry.path().string());
+            auto err = glz::format_error(biome.error(), ss.str());
+            LOG_ERROR("Failed to parse biome: {} - {}", entry.path().string(), err);
             continue;
         }
 

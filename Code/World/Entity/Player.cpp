@@ -3,6 +3,7 @@
 #include "Input.h"
 #include "Math/Vector.h"
 #include "Physics/AABB.h"
+#include "World/Block/Blocks.h"
 #include "World/Entity/Component/Chunk/ChunkGenerator.h"
 #include "World/Entity/Component/EntityPhysics.h"
 #include "World/Entity/Component/Transform.h"
@@ -243,7 +244,7 @@ void PlayerInput::OnUpdate(float delta)
             if (!AABB::Intersects(playerBox, placeBox))
             {
                 auto &chunkManager = EngineContext::GetWorld().GetChunkManager();
-                chunkManager.SetBlock(placePos.x, placePos.y, placePos.z, Blocks::DIRT_SLAB);
+                chunkManager.SetBlock(placePos.x, placePos.y, placePos.z, Blocks::LEAVES);
             }
         }
     }

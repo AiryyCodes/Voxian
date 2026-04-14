@@ -43,7 +43,8 @@ void BlockRegistry::Init()
         auto blockData = glz::read_json<BlockData>(jsonContent);
         if (!blockData)
         {
-            LOG_ERROR("Failed to parse block data: {}", path.string());
+            auto err = glz::format_error(blockData.error(), jsonContent);
+            LOG_ERROR("Failed to parse block data: {} - {}", path.string(), err);
             continue;
         }
         if (!blockData->Validate())
@@ -69,7 +70,8 @@ void BlockRegistry::Init()
         auto modelErr = glz::read_json(model, modelJson);
         if (modelErr)
         {
-            LOG_ERROR("Failed to parse model: {}", modelPath);
+            auto err = glz::format_error(modelErr, modelJson);
+            LOG_ERROR("Failed to parse model: {} - {}", modelPath, err);
             continue;
         }
 

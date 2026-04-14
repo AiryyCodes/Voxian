@@ -3,6 +3,7 @@
 #include "Math/Vector.h"
 #include "Util/Direction.h"
 
+#include <glaze/core/common.hpp>
 #include <glaze/glaze.hpp>
 #include <string>
 
@@ -18,11 +19,27 @@ struct FaceIndices
     Vector2f UVs[4];
 };
 
+enum class RotationAxis
+{
+    X,
+    Y,
+    Z
+};
+
+struct ElementRotation
+{
+    Vector3f Origin = Vector3f(8, 8, 8);
+    RotationAxis Axis = RotationAxis::Y;
+    float Angle = 0.0f;
+};
+
 struct Element
 {
     std::string Name;
-    Vector3i From;
-    Vector3i To;
+    Vector3f From;
+    Vector3f To;
+    bool NoAmbientOcclusion = false;
+    std::vector<ElementRotation> Rotations;
     std::unordered_map<std::string, Face> Faces;
 };
 
@@ -41,6 +58,26 @@ struct glz::meta<Face>
 };
 
 template <>
+struct glz::meta<RotationAxis>
+{
+    using enum RotationAxis;
+    static constexpr auto value = glz::enumerate(
+        "X", X,
+        "Y", Y,
+        "Z", Z);
+};
+
+template <>
+struct glz::meta<ElementRotation>
+{
+    using T = ElementRotation;
+    static constexpr auto value = glz::object(
+        "Origin", &T::Origin,
+        "Axis", &T::Axis,
+        "Angle", &T::Angle);
+};
+
+template <>
 struct glz::meta<Element>
 {
     using T = Element;
@@ -48,7 +85,9 @@ struct glz::meta<Element>
         "Name", &T::Name,
         "From", &T::From,
         "To", &T::To,
-        "Faces", &T::Faces);
+        "Rotations", &T::Rotations,
+        "Faces", &T::Faces,
+        "NoAmbientOcclusion", &T::NoAmbientOcclusion);
 };
 
 template <>

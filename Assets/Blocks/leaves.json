@@ -1,14 +1,15 @@
 {
     "Name": "Leaves",
     "Id": "leaves",
-    "Model": "Block/cube_all",
+    "Model": "Block/leaves",
     "Textures": {
         "North": "Block/leaves",
         "South": "Block/leaves",
         "East": "Block/leaves",
         "West": "Block/leaves",
         "Up": "Block/leaves",
-        "Down": "Block/leaves"
+        "Down": "Block/leaves",
+        "Bushy": "Block/leaves_bush"
     },
     "Properties": {
         "IsSolid": false,

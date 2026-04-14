@@ -8,6 +8,7 @@ struct BakedFace
 {
     std::array<Vector3f, 4> Positions;
     Vector4f UVs; // x=uMin, y=vMin, z=uMax, w=vMax
+    Vector3f RotatedNormal;
     int NormalIndex;
     int TextureLayer;
 };
@@ -16,6 +17,7 @@ struct BakedElement
 {
     std::string Name;
     std::vector<BakedFace> Faces;
+    bool NoAmbientOcclusion;
 };
 
 struct BakedModel
