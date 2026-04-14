@@ -53,7 +53,8 @@ public:
     ~Chunk();
 
     ChunkSnapshot CreateSnapshot() const;
-    void UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture);
+    void UploadOpaqueMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture);
+    void UploadTransparentMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture);
 
     uint16_t GetBlock(int x, int y, int z) const;
     void SetBlock(int x, int y, int z, uint16_t id);

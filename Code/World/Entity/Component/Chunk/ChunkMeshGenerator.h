@@ -14,7 +14,7 @@ public:
     ChunkMeshGenerator(Chunk &chunk);
     ~ChunkMeshGenerator();
 
-    ChunkMeshData GenerateMesh(const ChunkSnapshot &snapshot);
+    ChunkMeshGroup GenerateMesh(const ChunkSnapshot &snapshot);
 
 private:
     float GetOcclusion(bool side1, bool side2, bool corner);

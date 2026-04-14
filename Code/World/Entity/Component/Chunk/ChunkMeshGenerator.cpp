@@ -4,6 +4,7 @@
 #include "Renderer/Model/Model.h"
 #include "Util/Direction.h"
 #include "World/Block/BlockProperties.h"
+#include "World/Chunk/ChunkMesh.h"
 #include "World/Entity/Chunk.h"
 
 #include <array>
@@ -20,11 +21,13 @@ ChunkMeshGenerator::~ChunkMeshGenerator()
 {
 }
 
-ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
+ChunkMeshGroup ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
 {
-    ChunkMeshData meshData;
-    meshData.Vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 4);
-    meshData.Indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 6);
+    ChunkMeshGroup group;
+    group.Opaque.Vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 4);
+    group.Opaque.Indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 6);
+    group.Transparent.Vertices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 4);
+    group.Transparent.Indices.reserve(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT * 6);
 
     static const std::array<Vector3i, 6> normalMap = {
         Vector3i(1, 0, 0),
@@ -63,8 +66,26 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                     Vector3i relativePos = Vector3i(x, y, z) + direction.ToVector();
                     uint16_t neighborId = snapshot.GetBlock(relativePos.x + 1, relativePos.y + 1, relativePos.z + 1);
                     const BlockProperties &neighborProperties = snapshot.GetBlockProperties(neighborId);
-                    if (neighborId != 0 && !neighborProperties.IsAir && neighborProperties.IsFullCube)
-                        continue; // only cull if neighbor is a full opaque cube
+
+                    bool skip = false;
+
+                    // If the neighbor is Air, dont skip
+                    if (neighborId == 0 || neighborProperties.IsAir)
+                    {
+                        skip = false;
+                    }
+                    // If neighbor is Opaque and solid, cull the face
+                    else if (neighborProperties.Transparency == TransparencyType::Opaque && neighborProperties.IsFullCube)
+                    {
+                        skip = true;
+                    }
+
+                    if (skip)
+                        continue;
+
+                    ChunkMeshData &destData = (properties.Transparency == TransparencyType::Transparent)
+                                                  ? group.Transparent
+                                                  : group.Opaque;
 
                     int normalIndex = s_NormalIndexMap.at(direction);
 
@@ -83,14 +104,14 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                                 ao[i] = GetVertexAO(snapshot, pos, blockPos, normalMap[normalIndex]);
                             }
 
-                            unsigned int baseIndex = meshData.Vertices.size();
+                            unsigned int baseIndex = destData.Vertices.size();
 
                             for (int i = 0; i < 4; ++i)
                             {
                                 // Baked positions are in 0-1 block space, offset by block pos
                                 Vector3f pos = blockPos + bakedFace.Positions[i];
 
-                                meshData.Vertices.push_back(MakeVertex(
+                                destData.Vertices.push_back(MakeVertex(
                                     pos.x, pos.y, pos.z,
                                     normalIndex,
                                     i,
@@ -104,21 +125,21 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
 
                             if (diag1 > diag2)
                             {
-                                meshData.Indices.push_back(baseIndex + 0);
-                                meshData.Indices.push_back(baseIndex + 1);
-                                meshData.Indices.push_back(baseIndex + 2);
-                                meshData.Indices.push_back(baseIndex + 0);
-                                meshData.Indices.push_back(baseIndex + 2);
-                                meshData.Indices.push_back(baseIndex + 3);
+                                destData.Indices.push_back(baseIndex + 0);
+                                destData.Indices.push_back(baseIndex + 1);
+                                destData.Indices.push_back(baseIndex + 2);
+                                destData.Indices.push_back(baseIndex + 0);
+                                destData.Indices.push_back(baseIndex + 2);
+                                destData.Indices.push_back(baseIndex + 3);
                             }
                             else
                             {
-                                meshData.Indices.push_back(baseIndex + 1);
-                                meshData.Indices.push_back(baseIndex + 2);
-                                meshData.Indices.push_back(baseIndex + 3);
-                                meshData.Indices.push_back(baseIndex + 1);
-                                meshData.Indices.push_back(baseIndex + 3);
-                                meshData.Indices.push_back(baseIndex + 0);
+                                destData.Indices.push_back(baseIndex + 1);
+                                destData.Indices.push_back(baseIndex + 2);
+                                destData.Indices.push_back(baseIndex + 3);
+                                destData.Indices.push_back(baseIndex + 1);
+                                destData.Indices.push_back(baseIndex + 3);
+                                destData.Indices.push_back(baseIndex + 0);
                             }
                         }
                     }
@@ -127,7 +148,7 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
         }
     }
 
-    return meshData;
+    return group;
 }
 
 float ChunkMeshGenerator::GetOcclusion(bool side1, bool side2, bool corner)
@@ -144,10 +165,17 @@ float ChunkMeshGenerator::GetOcclusion(bool side1, bool side2, bool corner)
 float ChunkMeshGenerator::GetVertexAO(
     const ChunkSnapshot &snapshot, Vector3f vertexPos, Vector3i blockPos, Vector3i normal)
 {
-    // Use a small epsilon to ensure we don't get stuck on the 0.5 boundary
-    Vector3f localPos = vertexPos - Vector3f(blockPos.x, blockPos.y, blockPos.z);
+    Vector3i directPos = blockPos + normal;
+    uint16_t directId = snapshot.GetBlock(directPos.x + 1, directPos.y + 1, directPos.z + 1);
+    const auto &directP = snapshot.GetBlockProperties(directId);
 
-    // Determine which corner of the 1x1x1 block space this vertex represents
+    float baseAO = 1.0f;
+    if (!directP.IsAir && directP.Transparency == TransparencyType::Cutout)
+    {
+        baseAO = 0.6f;
+    }
+
+    Vector3f localPos = vertexPos - Vector3f(blockPos + normal);
     Vector3i corner = Vector3i(
         (localPos.x > 0.5f - 0.001f) ? 1 : -1,
         (localPos.y > 0.5f - 0.001f) ? 1 : -1,
@@ -173,22 +201,18 @@ float ChunkMeshGenerator::GetVertexAO(
     auto sample = [&](Vector3i offset) -> bool
     {
         Vector3i s = blockPos + normal + offset;
-
-        // Ensure we don't sample the block itself
-        if (s == blockPos)
-            return false;
-
         uint16_t id = snapshot.GetBlock(s.x + 1, s.y + 1, s.z + 1);
         const auto &p = snapshot.GetBlockProperties(id);
-
-        return !p.IsAir && p.IsFullCube;
+        return !p.IsAir && (p.Transparency != TransparencyType::Transparent) && p.IsFullCube;
     };
 
     bool s1 = sample(sideA);
     bool s2 = sample(sideB);
     bool c = sample(sideA + sideB);
 
-    return GetOcclusion(s1, s2, c);
+    float cornerAO = GetOcclusion(s1, s2, c);
+
+    return baseAO * cornerAO;
 }
 
 std::array<Vector3i, 3> ChunkMeshGenerator::GetAONeighbors(int vertexIndex, Vector3i face)

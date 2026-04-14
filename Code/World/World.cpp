@@ -24,6 +24,8 @@ void World::Render(Renderer &renderer)
 {
     renderer.SetCamera(m_ActiveCamera);
 
+    m_ChunkManager.Render(renderer);
+
     for (const auto &entity : m_Entities)
     {
         entity->Render(renderer);

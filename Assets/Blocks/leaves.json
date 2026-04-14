@@ -1,0 +1,17 @@
+{
+    "Name": "Leaves",
+    "Id": "leaves",
+    "Model": "Block/cube_all",
+    "Textures": {
+        "North": "Block/leaves",
+        "South": "Block/leaves",
+        "East": "Block/leaves",
+        "West": "Block/leaves",
+        "Up": "Block/leaves",
+        "Down": "Block/leaves"
+    },
+    "Properties": {
+        "IsSolid": false,
+        "Transparency": "Cutout"
+    }
+}

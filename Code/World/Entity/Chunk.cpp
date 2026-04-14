@@ -1,15 +1,14 @@
 #include "Chunk.h"
 #include "Component/Chunk/ChunkGenerator.h"
 #include "Component/Chunk/ChunkMeshGenerator.h"
+#include "Component/Chunk/ChunkMeshRenderer.h"
 #include "Engine.h"
 #include "Math/Vector.h"
-#include "Renderer/ShaderLibrary.h"
 #include "Renderer/Texture.h"
 #include "Util/Memory.h"
 #include "World/Block/Block.h"
 #include "World/Block/BlockRegistry.h"
 #include "World/Chunk/ChunkManager.h"
-#include "World/Entity/Component/MeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Entity.h"
 #include "World/World.h"
@@ -59,12 +58,12 @@ ChunkSnapshot Chunk::CreateSnapshot() const
     return snapshot;
 }
 
-void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
+void Chunk::UploadOpaqueMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
 {
-    MeshRenderer &meshRenderer = HasComponent<MeshRenderer>()
-                                     ? GetComponent<MeshRenderer>()
-                                     : AddComponent<MeshRenderer>(Shaders::Chunk);
-    meshRenderer.GetMesh().Init(
+    ChunkMeshRenderer &meshRenderer = HasComponent<ChunkMeshRenderer>()
+                                          ? GetComponent<ChunkMeshRenderer>()
+                                          : AddComponent<ChunkMeshRenderer>();
+    meshRenderer.GetOpaqueMesh().Init(
         meshData.Vertices.data(),
         meshData.Vertices.size() * sizeof(ChunkVertex),
         meshData.Indices.data(),
@@ -75,7 +74,26 @@ void Chunk::UploadMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
             {AttribType::Float4, false}, // UVBounds
         });
 
-    meshRenderer.GetMesh().SetTexture(texture);
+    meshRenderer.GetOpaqueMesh().SetTexture(texture);
+}
+
+void Chunk::UploadTransparentMesh(ChunkMeshData &meshData, Ref<TextureArray2D> texture)
+{
+    ChunkMeshRenderer &meshRenderer = HasComponent<ChunkMeshRenderer>()
+                                          ? GetComponent<ChunkMeshRenderer>()
+                                          : AddComponent<ChunkMeshRenderer>();
+    meshRenderer.GetTransparentMesh().Init(
+        meshData.Vertices.data(),
+        meshData.Vertices.size() * sizeof(ChunkVertex),
+        meshData.Indices.data(),
+        meshData.Indices.size(),
+        {
+            {AttribType::UInt, false},   // Data1
+            {AttribType::UInt, false},   // Data2
+            {AttribType::Float4, false}, // UVBounds
+        });
+
+    meshRenderer.GetTransparentMesh().SetTexture(texture);
 }
 
 uint16_t Chunk::GetBlock(int x, int y, int z) const

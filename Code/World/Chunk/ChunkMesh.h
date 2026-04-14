@@ -18,6 +18,12 @@ struct ChunkMeshData
     std::vector<unsigned int> Indices;
 };
 
+struct ChunkMeshGroup
+{
+    ChunkMeshData Opaque;
+    ChunkMeshData Transparent;
+};
+
 inline ChunkVertex MakeVertex(
     float x, float y, float z,
     int normalIndex, // 0-5

@@ -2,10 +2,13 @@
 #include "ChunkSnapshot.h"
 #include "Engine.h"
 #include "Math/Vector.h"
+#include "Renderer/Renderer.h"
 #include "Util/Memory.h"
 #include "World/Block/BlockRegistry.h"
+#include "World/Chunk/ChunkMesh.h"
 #include "World/Entity/Component/Chunk/ChunkGenerator.h"
 #include "World/Entity/Component/Chunk/ChunkMeshGenerator.h"
+#include "World/Entity/Component/Chunk/ChunkMeshRenderer.h"
 #include "World/Entity/Component/Transform.h"
 #include "World/Entity/Player.h"
 #include "World/World.h"
@@ -112,6 +115,19 @@ void ChunkManager::Update(float delta)
     }
 }
 
+void ChunkManager::Render(Renderer &renderer)
+{
+    for (auto &chunk : m_Chunks)
+    {
+        chunk.second->GetComponent<ChunkMeshRenderer>().RenderOpaque(renderer);
+    }
+
+    for (auto &chunk : m_Chunks)
+    {
+        chunk.second->GetComponent<ChunkMeshRenderer>().RenderTransparent(renderer);
+    }
+}
+
 Ref<Chunk> ChunkManager::GetChunk(int x, int z)
 {
     auto it = m_Chunks.find(Vector2i(x, z));
@@ -171,7 +187,7 @@ void ChunkManager::PollPendingChunks()
 
         if (it->second.MeshDataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
         {
-            ChunkMeshData meshData = it->second.MeshDataFuture.get();
+            ChunkMeshGroup meshGroup = it->second.MeshDataFuture.get();
 
             if (!m_ChunkTextureArray)
             {
@@ -179,7 +195,8 @@ void ChunkManager::PollPendingChunks()
                 continue;
             }
 
-            it->second.Chunk->UploadMesh(meshData, m_ChunkTextureArray);
+            it->second.Chunk->UploadOpaqueMesh(meshGroup.Opaque, m_ChunkTextureArray);
+            it->second.Chunk->UploadTransparentMesh(meshGroup.Transparent, m_ChunkTextureArray);
 
             m_ChunksReadyToRegister.push_back(it->second.Chunk);
 
@@ -345,4 +362,8 @@ ChunkSnapshot ChunkManager::CreateSnapshotWithNeighbors(Ref<Chunk> chunk)
                 snapshot.SetBlock(x + 1, y + 1, PADDED_CHUNK_SIZE - 1, frontChunk->second->GetBlock(x, y, 0));
 
     return snapshot;
+}
+
+void ChunkManager::UploadMesh(ChunkMeshData &meshData)
+{
 }

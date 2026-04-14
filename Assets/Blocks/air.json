@@ -3,6 +3,7 @@
     "Id": "air",
     "Texture": "Block/air",
     "Properties": {
-        "IsAir": true
+        "IsAir": true,
+        "Transparency": "Transparent"
     }
 }

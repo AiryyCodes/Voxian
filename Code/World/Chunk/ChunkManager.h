@@ -2,6 +2,7 @@
 
 #include "ChunkMesh.h"
 #include "Math/Vector.h"
+#include "Renderer/Renderer.h"
 #include "Renderer/Texture.h"
 #include "Util/Memory.h"
 #include "World/Chunk/Terrain/TerrainNoise.h"
@@ -18,7 +19,7 @@ class World;
 
 struct PendingChunk
 {
-    std::future<ChunkMeshData> MeshDataFuture;
+    std::future<ChunkMeshGroup> MeshDataFuture;
     Ref<class Chunk> Chunk;
 };
 
@@ -29,6 +30,7 @@ public:
 
     void Init();
     void Update(float delta);
+    void Render(Renderer &renderer);
 
     Ref<Chunk> GetChunk(int x, int z);
     bool IsChunkLoaded(int x, int z);
@@ -49,6 +51,8 @@ private:
     void RebuildDirtyChunks();
 
     ChunkSnapshot CreateSnapshotWithNeighbors(Ref<Chunk> chunk);
+
+    void UploadMesh(ChunkMeshData &meshData);
 
 private:
     static constexpr int MAX_CHUNKS_PER_FRAME = 4;
