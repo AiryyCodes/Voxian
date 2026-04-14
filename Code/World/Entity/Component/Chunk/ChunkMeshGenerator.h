@@ -19,7 +19,7 @@ public:
 private:
     float GetOcclusion(bool side1, bool side2, bool corner);
 
-    std::array<float, 4> GetVertexAOs(const ChunkSnapshot &snapshot, Vector3i blockPos, Vector3i normal);
+    float GetVertexAO(const ChunkSnapshot &snapshot, Vector3f vertexPos, Vector3i blockPos, Vector3i normal);
     std::array<Vector3i, 3> GetAONeighbors(int vertexIndex, Vector3i face);
 
 private:

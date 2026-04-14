@@ -67,7 +67,6 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                         continue; // only cull if neighbor is a full opaque cube
 
                     int normalIndex = s_NormalIndexMap.at(direction);
-                    auto ao = GetVertexAOs(snapshot, Vector3i(x, y, z), normalMap[normalIndex]);
 
                     // Emit 4 packed vertices
                     for (const auto &elem : model->Elements)
@@ -76,6 +75,13 @@ ChunkMeshData ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                         {
                             if (bakedFace.NormalIndex != normalIndex)
                                 continue;
+
+                            std::array<float, 4> ao;
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                Vector3f pos = blockPos + bakedFace.Positions[i];
+                                ao[i] = GetVertexAO(snapshot, pos, blockPos, normalMap[normalIndex]);
+                            }
 
                             unsigned int baseIndex = meshData.Vertices.size();
 
@@ -135,34 +141,54 @@ float ChunkMeshGenerator::GetOcclusion(bool side1, bool side2, bool corner)
     return 1.0f;
 }
 
-std::array<float, 4> ChunkMeshGenerator::GetVertexAOs(const ChunkSnapshot &snapshot, Vector3i blockPos, Vector3i normal)
+float ChunkMeshGenerator::GetVertexAO(
+    const ChunkSnapshot &snapshot, Vector3f vertexPos, Vector3i blockPos, Vector3i normal)
 {
-    std::array<float, 4> ao;
-    for (int i = 0; i < 4; i++)
+    // Use a small epsilon to ensure we don't get stuck on the 0.5 boundary
+    Vector3f localPos = vertexPos - Vector3f(blockPos.x, blockPos.y, blockPos.z);
+
+    // Determine which corner of the 1x1x1 block space this vertex represents
+    Vector3i corner = Vector3i(
+        (localPos.x > 0.5f - 0.001f) ? 1 : -1,
+        (localPos.y > 0.5f - 0.001f) ? 1 : -1,
+        (localPos.z > 0.5f - 0.001f) ? 1 : -1);
+
+    Vector3i sideA, sideB;
+    if (normal.x != 0)
     {
-        auto neighbors = GetAONeighbors(i, normal);
-
-        const Vector3i &p1 = neighbors[0];
-        const Vector3i &p2 = neighbors[1];
-        const Vector3i &p3 = neighbors[2];
-
-        bool side1 = !snapshot.GetBlockProperties(snapshot.GetBlock(blockPos.x + p1.x + 1, blockPos.y + p1.y + 1, blockPos.z + p1.z + 1)).IsAir;
-        bool side2 = !snapshot.GetBlockProperties(snapshot.GetBlock(blockPos.x + p2.x + 1, blockPos.y + p2.y + 1, blockPos.z + p2.z + 1)).IsAir;
-        bool corner = !snapshot.GetBlockProperties(snapshot.GetBlock(blockPos.x + p3.x + 1, blockPos.y + p3.y + 1, blockPos.z + p3.z + 1)).IsAir;
-
-        ao[i] = GetOcclusion(side1, side2, corner);
+        sideA = {0, corner.y, 0};
+        sideB = {0, 0, corner.z};
+    }
+    else if (normal.y != 0)
+    {
+        sideA = {corner.x, 0, 0};
+        sideB = {0, 0, corner.z};
+    }
+    else
+    {
+        sideA = {corner.x, 0, 0};
+        sideB = {0, corner.y, 0};
     }
 
-    if (normal == Vector3i(0, 0, -1)) // Forward
+    auto sample = [&](Vector3i offset) -> bool
     {
-        std::reverse(ao.begin(), ao.end());
-    }
-    else if (normal == Vector3i(0, 0, 1)) // Backward
-    {
-        std::reverse(ao.begin(), ao.end());
-    }
+        Vector3i s = blockPos + normal + offset;
 
-    return ao;
+        // Ensure we don't sample the block itself
+        if (s == blockPos)
+            return false;
+
+        uint16_t id = snapshot.GetBlock(s.x + 1, s.y + 1, s.z + 1);
+        const auto &p = snapshot.GetBlockProperties(id);
+
+        return !p.IsAir && p.IsFullCube;
+    };
+
+    bool s1 = sample(sideA);
+    bool s2 = sample(sideB);
+    bool c = sample(sideA + sideB);
+
+    return GetOcclusion(s1, s2, c);
 }
 
 std::array<Vector3i, 3> ChunkMeshGenerator::GetAONeighbors(int vertexIndex, Vector3i face)
