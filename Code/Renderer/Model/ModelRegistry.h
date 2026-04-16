@@ -56,6 +56,7 @@ private:
                 const Direction dir = FaceNameToDirection(faceName);
                 const FaceIndices &fi = s_FaceIndicesMap.at(dir);
                 bakedFace.NormalIndex = s_NormalIndexMap.at(dir);
+                bakedFace.CullFaceIndex = s_NormalIndexMap.at(face.CullFace);
 
                 for (int i = 0; i < 4; ++i)
                 {

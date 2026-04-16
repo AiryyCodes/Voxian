@@ -11,6 +11,7 @@ struct Face
 {
     Vector4i UV;
     std::string Texture;
+    Direction::Value CullFace;
 };
 
 struct FaceIndices
@@ -54,7 +55,8 @@ struct glz::meta<Face>
     using T = Face;
     static constexpr auto value = glz::object(
         "UV", &T::UV,
-        "Texture", &T::Texture);
+        "Texture", &T::Texture,
+        "CullFace", &T::CullFace);
 };
 
 template <>

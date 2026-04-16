@@ -7,7 +7,7 @@
 class Camera : public Component
 {
 public:
-    Camera(float fov = 45.0f, float aspect = 16.0f / 9.0f, float near = 0.1f, float far = 500.0f)
+    Camera(float fov = 45.0f, float aspect = 16.0f / 9.0f, float near = 0.1f, float far = 1000.0f)
         : m_FOV(fov), m_BaseFOV(fov), m_AspectRatio(aspect), m_NearPlane(near), m_FarPlane(far)
     {
         UpdateProjectionMatrix();

@@ -11,6 +11,7 @@ struct BakedFace
     Vector3f RotatedNormal;
     int NormalIndex;
     int TextureLayer;
+    int CullFaceIndex = -1;
 };
 
 struct BakedElement

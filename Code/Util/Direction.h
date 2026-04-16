@@ -50,6 +50,19 @@ private:
     static std::vector<Direction> s_AllDirections;
 };
 
+template <>
+struct glz::meta<Direction::Value>
+{
+    using enum Direction::Value;
+    static constexpr auto value = glz::enumerate(
+        "Up", Up,
+        "Down", Down,
+        "Left", Left,
+        "Right", Right,
+        "Forward", Forward,
+        "Backward", Backward);
+};
+
 namespace std
 {
 template <>

@@ -20,7 +20,8 @@
 						16,
 						8
 					],
-					"Texture": "#North"
+					"Texture": "#North",
+					"CullFace": "Forward"
 				},
 				"East": {
 					"UV": [
@@ -29,7 +30,8 @@
 						16,
 						8
 					],
-					"Texture": "#East"
+					"Texture": "#East",
+					"CullFace": "Right"
 				},
 				"South": {
 					"UV": [
@@ -38,7 +40,8 @@
 						16,
 						8
 					],
-					"Texture": "#South"
+					"Texture": "#South",
+					"CullFace": "Backward"
 				},
 				"West": {
 					"UV": [
@@ -47,7 +50,8 @@
 						16,
 						8
 					],
-					"Texture": "#West"
+					"Texture": "#West",
+					"CullFace": "Left"
 				},
 				"Up": {
 					"UV": [
@@ -65,7 +69,8 @@
 						16,
 						16
 					],
-					"Texture": "#Down"
+					"Texture": "#Down",
+					"CullFace": "Down"
 				}
 			}
 		}

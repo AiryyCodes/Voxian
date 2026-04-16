@@ -1,15 +1,12 @@
 #include "ChunkMeshGenerator.h"
 #include "Engine.h"
 #include "Math/Vector.h"
-#include "Renderer/Model/Model.h"
-#include "Util/Direction.h"
 #include "World/Block/BlockProperties.h"
 #include "World/Chunk/ChunkMesh.h"
 #include "World/Entity/Chunk.h"
 
 #include <array>
 #include <cstdint>
-#include <unordered_map>
 #include <vector>
 
 ChunkMeshGenerator::ChunkMeshGenerator(Chunk &chunk)
@@ -38,15 +35,6 @@ ChunkMeshGroup ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
         Vector3i(0, 0, 1),
     };
 
-    static constexpr Vector3i DIRS[6] = {
-        Vector3i(0, 1, 0),  // Up
-        Vector3i(0, -1, 0), // Down
-        Vector3i(-1, 0, 0), // Left
-        Vector3i(1, 0, 0),  // Right
-        Vector3i(0, 0, -1), // Forward
-        Vector3i(0, 0, 1)   // Backward
-    };
-
     const BlockRegistry &blockRegistry = EngineContext::GetBlockRegistry();
 
     for (int x = 0; x < CHUNK_SIZE; ++x)
@@ -68,91 +56,79 @@ ChunkMeshGroup ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
 
                 if (!model)
                     continue;
+
                 const Vector3f blockPos = Vector3f(x, y, z);
 
-                for (const auto &direction : Direction::GetAllDirections())
+                ChunkMeshData &destData = (properties.Transparency == TransparencyType::Transparent)
+                                              ? group.Transparent
+                                              : group.Opaque;
+
+                // Emit 4 packed vertices
+                for (const auto &elem : model->Elements)
                 {
-                    Vector3i relativePos = Vector3i(x, y, z) + DIRS[static_cast<int>(direction.GetValue())];
-                    uint16_t neighborId = snapshot.GetBlock(relativePos.x + 1, relativePos.y + 1, relativePos.z + 1);
-                    const BlockProperties &neighborProperties = snapshot.GetBlockProperties(neighborId);
-
-                    bool skip = false;
-
-                    // If the neighbor is Air, dont skip
-                    if (neighborId == 0 || neighborProperties.IsAir)
+                    for (const auto &bakedFace : elem.Faces)
                     {
-                        skip = false;
-                    }
-                    // If neighbor is Opaque and solid, cull the face
-                    else if (neighborProperties.Transparency == TransparencyType::Opaque && neighborProperties.IsFullCube)
-                    {
-                        skip = true;
-                    }
-
-                    if (skip)
-                        continue;
-
-                    ChunkMeshData &destData = (properties.Transparency == TransparencyType::Transparent)
-                                                  ? group.Transparent
-                                                  : group.Opaque;
-
-                    int normalIndex = s_NormalIndexMap.at(direction);
-
-                    // Emit 4 packed vertices
-                    for (const auto &elem : model->Elements)
-                    {
-                        for (const auto &bakedFace : elem.Faces)
+                        if (bakedFace.CullFaceIndex >= 0)
                         {
-                            if (bakedFace.NormalIndex != normalIndex)
+                            Vector3i cullDir = normalMap[bakedFace.CullFaceIndex];
+                            Vector3i neighborPos = Vector3i(x, y, z) + cullDir;
+                            uint16_t neighborId = snapshot.GetBlock(neighborPos.x + 1, neighborPos.y + 1, neighborPos.z + 1);
+                            const BlockProperties &neighborProps = snapshot.GetBlockProperties(neighborId);
+
+                            if (neighborId != 0 && !neighborProps.IsAir &&
+                                neighborProps.Transparency == TransparencyType::Opaque &&
+                                neighborProps.IsFullCube)
                                 continue;
+                        }
 
-                            std::array<float, 4> ao;
-                            for (int i = 0; i < 4; ++i)
-                            {
-                                Vector3f pos = blockPos + bakedFace.Positions[i];
-                                if (elem.NoAmbientOcclusion)
-                                    ao[i] = 1.0f;
-                                else
-                                    ao[i] = GetVertexAO(snapshot, pos, blockPos, normalMap[normalIndex]);
-                            }
+                        int normalIndex = bakedFace.NormalIndex;
 
-                            unsigned int baseIndex = destData.Vertices.size();
-
-                            for (int i = 0; i < 4; ++i)
-                            {
-                                // Baked positions are in 0-1 block space, offset by block pos
-                                Vector3f pos = blockPos + bakedFace.Positions[i];
-
-                                destData.Vertices.push_back(MakeVertex(
-                                    pos.x, pos.y, pos.z,
-                                    normalIndex,
-                                    i,
-                                    bakedFace.TextureLayer,
-                                    ao[i],
-                                    bakedFace.UVs));
-                            }
-
-                            float diag1 = ao[0] + ao[2];
-                            float diag2 = ao[1] + ao[3];
-
-                            if (diag1 > diag2)
-                            {
-                                destData.Indices.push_back(baseIndex + 0);
-                                destData.Indices.push_back(baseIndex + 1);
-                                destData.Indices.push_back(baseIndex + 2);
-                                destData.Indices.push_back(baseIndex + 0);
-                                destData.Indices.push_back(baseIndex + 2);
-                                destData.Indices.push_back(baseIndex + 3);
-                            }
+                        std::array<float, 4> ao;
+                        for (int i = 0; i < 4; ++i)
+                        {
+                            Vector3f pos = blockPos + bakedFace.Positions[i];
+                            if (elem.NoAmbientOcclusion)
+                                ao[i] = 1.0f;
                             else
-                            {
-                                destData.Indices.push_back(baseIndex + 1);
-                                destData.Indices.push_back(baseIndex + 2);
-                                destData.Indices.push_back(baseIndex + 3);
-                                destData.Indices.push_back(baseIndex + 1);
-                                destData.Indices.push_back(baseIndex + 3);
-                                destData.Indices.push_back(baseIndex + 0);
-                            }
+                                ao[i] = GetVertexAO(snapshot, pos, blockPos, normalMap[normalIndex]);
+                        }
+
+                        unsigned int baseIndex = destData.Vertices.size();
+
+                        for (int i = 0; i < 4; ++i)
+                        {
+                            // Baked positions are in 0-1 block space, offset by block pos
+                            Vector3f pos = blockPos + bakedFace.Positions[i];
+
+                            destData.Vertices.push_back(MakeVertex(
+                                pos.x, pos.y, pos.z,
+                                normalIndex,
+                                i,
+                                bakedFace.TextureLayer,
+                                ao[i],
+                                bakedFace.UVs));
+                        }
+
+                        float diag1 = ao[0] + ao[2];
+                        float diag2 = ao[1] + ao[3];
+
+                        if (diag1 > diag2)
+                        {
+                            destData.Indices.push_back(baseIndex + 0);
+                            destData.Indices.push_back(baseIndex + 1);
+                            destData.Indices.push_back(baseIndex + 2);
+                            destData.Indices.push_back(baseIndex + 0);
+                            destData.Indices.push_back(baseIndex + 2);
+                            destData.Indices.push_back(baseIndex + 3);
+                        }
+                        else
+                        {
+                            destData.Indices.push_back(baseIndex + 1);
+                            destData.Indices.push_back(baseIndex + 2);
+                            destData.Indices.push_back(baseIndex + 3);
+                            destData.Indices.push_back(baseIndex + 1);
+                            destData.Indices.push_back(baseIndex + 3);
+                            destData.Indices.push_back(baseIndex + 0);
                         }
                     }
                 }

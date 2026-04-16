@@ -21,7 +21,8 @@
 						16,
 						16
 					],
-					"Texture": "#North"
+					"Texture": "#North",
+					"CullFace": "Forward"
 				},
 				"East": {
 					"UV": [
@@ -30,7 +31,8 @@
 						16,
 						16
 					],
-					"Texture": "#East"
+					"Texture": "#East",
+					"CullFace": "Right"
 				},
 				"South": {
 					"UV": [
@@ -39,7 +41,8 @@
 						16,
 						16
 					],
-					"Texture": "#South"
+					"Texture": "#South",
+					"CullFace": "Backward"
 				},
 				"West": {
 					"UV": [
@@ -48,7 +51,8 @@
 						16,
 						16
 					],
-					"Texture": "#West"
+					"Texture": "#West",
+					"CullFace": "Left"
 				},
 				"Up": {
 					"UV": [
@@ -57,7 +61,8 @@
 						16,
 						16
 					],
-					"Texture": "#Up"
+					"Texture": "#Up",
+					"CullFace": "Up"
 				},
 				"Down": {
 					"UV": [
@@ -66,7 +71,8 @@
 						16,
 						16
 					],
-					"Texture": "#Down"
+					"Texture": "#Down",
+					"CullFace": "Down"
 				}
 			}
 		},
@@ -79,7 +85,7 @@
 			],
 			"To": [
 				8,
-				18.000000000000004,
+				18,
 				18
 			],
 			"NoAmbientOcclusion": true,
@@ -318,7 +324,7 @@
 						8
 					],
 					"Axis": "Y",
-					"Angle": -45.00000000000012
+					"Angle": -45
 				},
 				{
 					"Origin": [
@@ -327,7 +333,7 @@
 						8
 					],
 					"Axis": "Z",
-					"Angle": -90.0000000000001
+					"Angle": -90
 				}
 			]
 		},
@@ -417,7 +423,7 @@
 						8
 					],
 					"Axis": "Y",
-					"Angle": -45.00000000000012
+					"Angle": -45
 				},
 				{
 					"Origin": [
