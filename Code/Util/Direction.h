@@ -26,7 +26,7 @@ public:
     static std::string ToString(const Direction &direction);
 
     Value GetValue() const { return m_Value; }
-    static std::vector<Direction> GetAllDirections()
+    static const std::vector<Direction> &GetAllDirections()
     {
         return s_AllDirections;
     }

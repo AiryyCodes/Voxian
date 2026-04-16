@@ -38,6 +38,15 @@ ChunkMeshGroup ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
         Vector3i(0, 0, 1),
     };
 
+    static constexpr Vector3i DIRS[6] = {
+        Vector3i(0, 1, 0),  // Up
+        Vector3i(0, -1, 0), // Down
+        Vector3i(-1, 0, 0), // Left
+        Vector3i(1, 0, 0),  // Right
+        Vector3i(0, 0, -1), // Forward
+        Vector3i(0, 0, 1)   // Backward
+    };
+
     const BlockRegistry &blockRegistry = EngineContext::GetBlockRegistry();
 
     for (int x = 0; x < CHUNK_SIZE; ++x)
@@ -54,16 +63,16 @@ ChunkMeshGroup ChunkMeshGenerator::GenerateMesh(const ChunkSnapshot &snapshot)
                 if (properties.IsAir)
                     continue;
 
-                const std::string &blockName = blockRegistry.GetBlockNameByIndex(blockId);
-                const BakedModel *model = blockRegistry.GetBakedModel(blockName);
+                const BlockRenderData &render = blockRegistry.GetRenderData(blockId);
+                const BakedModel *model = render.Model;
+
                 if (!model)
                     continue;
-
                 const Vector3f blockPos = Vector3f(x, y, z);
 
                 for (const auto &direction : Direction::GetAllDirections())
                 {
-                    Vector3i relativePos = Vector3i(x, y, z) + direction.ToVector();
+                    Vector3i relativePos = Vector3i(x, y, z) + DIRS[static_cast<int>(direction.GetValue())];
                     uint16_t neighborId = snapshot.GetBlock(relativePos.x + 1, relativePos.y + 1, relativePos.z + 1);
                     const BlockProperties &neighborProperties = snapshot.GetBlockProperties(neighborId);
 

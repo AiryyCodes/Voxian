@@ -100,6 +100,8 @@ void ChunkManager::Update(float delta)
 
     PollPendingChunks();
 
+    UploadReadyChunks();
+
     if (!m_IsSpawnAreaReady)
     {
         if (m_Chunks.contains(m_SpawnChunkPos))
@@ -176,78 +178,123 @@ void ChunkManager::QueueChunk(Vector2i chunkPos)
 
 void ChunkManager::PollPendingChunks()
 {
-    constexpr float MAX_UPLOAD_MS = 2.0f;
-    auto start = std::chrono::high_resolution_clock::now();
-
     for (auto it = m_PendingChunks.begin(); it != m_PendingChunks.end();)
     {
-        auto now = std::chrono::high_resolution_clock::now();
-        if (std::chrono::duration<float, std::milli>(now - start).count() >= MAX_UPLOAD_MS)
+        PendingChunk &entry = it->second;
+
+        if (entry.Future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        {
+            ++it;
+            continue;
+        }
+
+        ReadyChunk ready;
+        ready.Pos = it->first;
+        ready.Mesh = entry.Future.get();
+        ready.Chunk = entry.Chunk;
+
+        m_ReadyQueue.push_back(std::move(ready));
+
+        it = m_PendingChunks.erase(it);
+    }
+}
+
+void ChunkManager::UploadReadyChunks()
+{
+    constexpr float MAX_MS = 4.0f;
+    constexpr int MAX_CHUNKS = 1;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    auto elapsed = [&]()
+    {
+        return std::chrono::duration<float, std::milli>(
+                   std::chrono::high_resolution_clock::now() - start)
+            .count();
+    };
+
+    int processed = 0;
+
+    while (!m_ReadyQueue.empty())
+    {
+        if (processed >= MAX_CHUNKS || elapsed() >= MAX_MS)
             break;
 
-        if (it->second.MeshDataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-        {
-            ChunkMeshGroup meshGroup = it->second.MeshDataFuture.get();
+        ReadyChunk ready = std::move(m_ReadyQueue.front());
+        m_ReadyQueue.pop_front();
 
-            if (!m_ChunkTextureArray)
-            {
-                LOG_ERROR("ChunkTextureArray is null - was ChunkManager::Init() called after BlockRegistry::InitGL()?");
-                continue;
-            }
+        ready.Chunk->UploadOpaqueMesh(ready.Mesh.Opaque, m_ChunkTextureArray);
+        ready.Chunk->UploadTransparentMesh(ready.Mesh.Transparent, m_ChunkTextureArray);
 
-            it->second.Chunk->UploadOpaqueMesh(meshGroup.Opaque, m_ChunkTextureArray);
-            it->second.Chunk->UploadTransparentMesh(meshGroup.Transparent, m_ChunkTextureArray);
+        m_ChunksReadyToRegister.push_back(ready.Chunk);
+        m_Chunks[ready.Pos] = ready.Chunk;
 
-            m_ChunksReadyToRegister.push_back(it->second.Chunk);
-
-            m_Chunks[it->first] = it->second.Chunk;
-            it = m_PendingChunks.erase(it);
-        }
-        else
-            ++it;
+        processed++;
     }
 }
 
 void ChunkManager::UnloadChunks(int renderDistance, Vector2i playerChunkPos)
 {
-    std::vector<Vector2i> chunksToUnload;
-    for (const auto &entry : m_Chunks)
+    auto outOfRange = [&](const Vector2i &p)
     {
-        Vector2i chunkPos = entry.first;
-        if (std::abs(chunkPos.x - playerChunkPos.x) > renderDistance ||
-            std::abs(chunkPos.y - playerChunkPos.y) > renderDistance)
-            chunksToUnload.push_back(chunkPos);
+        return std::abs(p.x - playerChunkPos.x) > renderDistance ||
+               std::abs(p.y - playerChunkPos.y) > renderDistance;
+    };
+
+    // Remove loaded chunks
+    std::vector<Vector2i> toUnload;
+
+    for (auto &[pos, chunk] : m_Chunks)
+    {
+        if (outOfRange(pos))
+            toUnload.push_back(pos);
     }
-    for (const auto &pos : chunksToUnload)
+
+    for (const Vector2i &pos : toUnload)
     {
         m_World.DestroyEntity(m_Chunks[pos].get());
         m_Chunks.erase(pos);
     }
 
-    // Also cancel pending chunks that have gone out of range
+    // CCancel pending chunks
     for (auto it = m_PendingChunks.begin(); it != m_PendingChunks.end();)
     {
-        Vector2i chunkPos = it->first;
-        if (std::abs(chunkPos.x - playerChunkPos.x) > renderDistance ||
-            std::abs(chunkPos.y - playerChunkPos.y) > renderDistance)
+        const Vector2i &pos = it->first;
+
+        if (outOfRange(pos))
         {
-            if (it->second.MeshDataFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-            {
-                m_World.DestroyEntity(it->second.Chunk.get());
-                it = m_PendingChunks.erase(it);
-            }
-            else
-                ++it; // still generating, check again next frame
+            it = m_PendingChunks.erase(it);
         }
         else
+        {
             ++it;
+        }
     }
 
     m_ChunkLoadQueue.erase(
-        std::remove_if(m_ChunkLoadQueue.begin(), m_ChunkLoadQueue.end(), [&](const Vector2i &pos)
-                       { return std::abs(pos.x - playerChunkPos.x) > renderDistance ||
-                                std::abs(pos.y - playerChunkPos.y) > renderDistance; }),
+        std::remove_if(m_ChunkLoadQueue.begin(), m_ChunkLoadQueue.end(),
+                       [&](const Vector2i &pos)
+                       {
+                           return outOfRange(pos);
+                       }),
         m_ChunkLoadQueue.end());
+
+    m_ReadyQueue.erase(
+        std::remove_if(m_ReadyQueue.begin(), m_ReadyQueue.end(),
+                       [&](const ReadyChunk &c)
+                       {
+                           return outOfRange(c.Pos);
+                       }),
+        m_ReadyQueue.end());
+
+    m_ChunksReadyToRegister.erase(
+        std::remove_if(m_ChunksReadyToRegister.begin(), m_ChunksReadyToRegister.end(),
+                       [&](const Ref<Chunk> &c)
+                       {
+                           auto pos = c->GetPosition();
+                           return outOfRange(pos);
+                       }),
+        m_ChunksReadyToRegister.end());
 }
 
 const Block *ChunkManager::GetBlock(int x, int y, int z) const
@@ -308,13 +355,17 @@ void ChunkManager::RebuildDirtyChunks()
             continue;
 
         Ref<Chunk> chunk = it->second;
-        ChunkSnapshot snapshot = CreateSnapshotWithNeighbors(chunk); // <-- here
+        ChunkSnapshot snapshot = CreateSnapshotWithNeighbors(chunk);
 
-        auto future = m_ThreadPool.submit_task([chunk, snapshot = std::move(snapshot)]() mutable
-                                               { return chunk->GetComponent<ChunkMeshGenerator>().GenerateMesh(snapshot); });
+        auto future = m_ThreadPool.submit_task(
+            [chunk, snapshot = std::move(snapshot)]() mutable
+            {
+                return chunk->GetComponent<ChunkMeshGenerator>().GenerateMesh(snapshot);
+            });
 
         m_PendingChunks[pos] = {std::move(future), chunk};
     }
+
     m_DirtyChunks.clear();
 }
 

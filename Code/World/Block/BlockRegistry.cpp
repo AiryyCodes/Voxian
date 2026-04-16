@@ -79,8 +79,20 @@ void BlockRegistry::Init()
         auto vars = blockData->ResolveTextureVariables(model);
         m_ModelRegistry.Load(blockData->Id, model, vars, m_TextureRegistry);
 
-        RegisterBlock(blockData->Id, CreateScope<Block>(blockData->Properties));
+        uint16_t index = RegisterBlock(blockData->Id, CreateScope<Block>(blockData->Properties));
         m_BlockDataMap[blockData->Id] = *blockData;
+
+        const std::string &id = blockData->Id;
+
+        const BakedModel *bakedModel = m_ModelRegistry.Get(id);
+
+        BlockRenderData render;
+        render.Model = bakedModel;
+        render.DefaultTextureLayer = 0;
+        render.Properties = blockData->Properties;
+
+        m_RenderData.resize(m_Blocks.size());
+        m_RenderData[index] = render;
     }
 
     if (m_TextureRegistry.GetLayerCount() == 0)
@@ -146,21 +158,9 @@ uint16_t BlockRegistry::GetBlockIndexById(const std::string &id) const
     return 0; // Default to air block index if not found
 }
 
-const std::string &BlockRegistry::GetBlockNameByIndex(uint16_t index) const
-{
-    auto it = m_IdToName.find(index);
-    static const std::string empty = "";
-    return it != m_IdToName.end() ? it->second : empty;
-}
-
 bool BlockRegistry::IsIdRegistered(const std::string &id) const
 {
     return m_Blocks.contains(id);
-}
-
-const BakedModel *BlockRegistry::GetBakedModel(const std::string &id) const
-{
-    return m_ModelRegistry.Get(id);
 }
 
 int BlockRegistry::GetTextureLayer(uint16_t blockIndex, const Direction &direction) const

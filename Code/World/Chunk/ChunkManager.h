@@ -17,10 +17,24 @@
 
 class World;
 
+enum class ChunkStage
+{
+    Generating,
+    Ready,
+    Uploaded
+};
+
 struct PendingChunk
 {
-    std::future<ChunkMeshGroup> MeshDataFuture;
-    Ref<class Chunk> Chunk;
+    std::future<ChunkMeshGroup> Future;
+    Ref<Chunk> Chunk;
+};
+
+struct ReadyChunk
+{
+    Vector2i Pos;
+    ChunkMeshGroup Mesh;
+    Ref<Chunk> Chunk;
 };
 
 class ChunkManager
@@ -45,6 +59,7 @@ private:
 
     void QueueChunk(Vector2i chunkPos);
     void PollPendingChunks();
+    void UploadReadyChunks();
     void UnloadChunks(int renderDistance, Vector2i playerChunkPos);
 
     void MarkChunkDirty(Vector2i chunkPos);
@@ -55,7 +70,7 @@ private:
     void UploadMesh(ChunkMeshData &meshData);
 
 private:
-    static constexpr int MAX_CHUNKS_PER_FRAME = 4;
+    static constexpr int MAX_CHUNKS_PER_FRAME = 1;
 
     TerrainNoise m_Noise;
 
@@ -70,6 +85,7 @@ private:
     std::vector<Ref<Chunk>> m_ChunksReadyToRegister;
 
     std::unordered_set<Vector2i> m_DirtyChunks;
+    std::deque<ReadyChunk> m_ReadyQueue;
 
     Ref<TextureArray2D> m_ChunkTextureArray;
 
