@@ -27,14 +27,14 @@ enum class ChunkStage
 struct PendingChunk
 {
     std::future<ChunkMeshGroup> Future;
-    Ref<Chunk> Chunk;
+    Ref<Chunk> PendingChunk;
 };
 
 struct ReadyChunk
 {
     Vector2i Pos;
     ChunkMeshGroup Mesh;
-    Ref<Chunk> Chunk;
+    Ref<Chunk> ReadyChunk;
 };
 
 class ChunkManager

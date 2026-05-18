@@ -191,7 +191,7 @@ void ChunkManager::PollPendingChunks()
         ReadyChunk ready;
         ready.Pos = it->first;
         ready.Mesh = entry.Future.get();
-        ready.Chunk = entry.Chunk;
+        ready.ReadyChunk = entry.PendingChunk;
 
         m_ReadyQueue.push_back(std::move(ready));
 
@@ -223,11 +223,11 @@ void ChunkManager::UploadReadyChunks()
         ReadyChunk ready = std::move(m_ReadyQueue.front());
         m_ReadyQueue.pop_front();
 
-        ready.Chunk->UploadOpaqueMesh(ready.Mesh.Opaque, m_ChunkTextureArray);
-        ready.Chunk->UploadTransparentMesh(ready.Mesh.Transparent, m_ChunkTextureArray);
+        ready.ReadyChunk->UploadOpaqueMesh(ready.Mesh.Opaque, m_ChunkTextureArray);
+        ready.ReadyChunk->UploadTransparentMesh(ready.Mesh.Transparent, m_ChunkTextureArray);
 
-        m_ChunksReadyToRegister.push_back(ready.Chunk);
-        m_Chunks[ready.Pos] = ready.Chunk;
+        m_ChunksReadyToRegister.push_back(ready.ReadyChunk);
+        m_Chunks[ready.Pos] = ready.ReadyChunk;
 
         processed++;
     }
